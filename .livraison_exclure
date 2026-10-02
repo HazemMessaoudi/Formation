@@ -1,0 +1,33 @@
+V3/data/secret_key
+V3/data/*.db
+V3/data/*.db-wal
+V3/data/*.db-shm
+V3/data/pdfs/*
+V3/data/logs/*
+V3/data/backups/*
+V3/data/tmp/*
+V3/data/cachet.png
+V3/data/archives/*
+V3/data/restauration_miroir.json
+V3/*/__pycache__/*
+V3/**/__pycache__/*
+V3/__pycache__/*
+V3/.pytest_cache/*
+V3/*.pyc
+V3/.git/*
+V3/claude/*
+# ── Pourquoi ─────────────────────────────────────────────────────────────────
+# data/secret_key : clé de session PROPRE À CHAQUE POSTE, générée au premier
+#   lancement. Livrée, elle était identique partout : un cookie d'une autre
+#   installation ouvrait la منظومة sans connexion (incident v1.4c).
+# data/*.db       : la base appartient au centre, jamais au paquet.
+# .git / claude : historique et notes de travail, jamais dans le paquet (v1.6.1).
+# data/tmp       : PDF transitoires (v1.7), supprimés dès leur envoi.
+# data/cachet.png: tampon propre au centre (v1.7), jamais livré.
+# data/archives   : archives annuelles figées du centre (V3.1), jamais livrées.
+V3/Outils/*.exe
+V3/data/ui/*
+# Outils/*.exe  : l'installateur WebView2 (≈ 200 Mo, Microsoft) accompagne le
+#   programme prêt à l'emploi, jamais le paquet source (1.0).
+# data/ui       : port retenu, taille de la fenêtre, profil WebView2 — propres
+#   au poste (1.0).
