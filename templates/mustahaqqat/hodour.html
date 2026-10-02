@@ -1,0 +1,414 @@
+{% extends "base_mustahaqqat.html" %}
+{% block title %}ورقة الحضور – {{ dorra.titre }}{% endblock %}
+
+{#  الشاشة 2 : التأشير على ورقة الحضور
+    Un choix EXCLUSIF par مشارك — حاضر ou غائب, jamais les deux, jamais aucun.
+    C'est ce pointage, et lui seul, qui fonde le صنف de la dorra. #}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;">
+  <h1>🙋 ورقة الحضور</h1>
+  <a href="{{ url_for('mustahaqqat_ghayr_manjaza') }}" class="btn btn-cancel">↩ رجوع إلى قائمة الدورات</a>
+</div>
+
+<div class="card">
+  <div class="card-title">📋 معطيات الدورة</div>
+  <div class="fiche-grid">
+    <div class="fiche-row"><div class="fiche-lbl">عنوان الدورة</div><div class="fiche-val">{{ dorra.titre }}</div></div>
+    <div class="fiche-row"><div class="fiche-lbl">تاريخ الدورة</div><div class="fiche-val">{{ dorra|dates_dorra }}</div></div>
+    <div class="fiche-row"><div class="fiche-lbl">المكوّن</div><div class="fiche-val">{{ dorra.grade }} {{ dorra.nom_formateur or '—' }}</div></div>
+    <div class="fiche-row"><div class="fiche-lbl">مكان التكوين</div><div class="fiche-val">{{ dorra.lieu_formation or '—' }}</div></div>
+    <div class="fiche-row"><div class="fiche-lbl">مرجع المراسلة</div><div class="fiche-val">{{ dorra.lettre_ref or '—' }}</div></div>
+    <div class="fiche-row"><div class="fiche-lbl">عدد المشاركين</div><div class="fiche-val">{{ participants|length }}</div></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:1.3rem;">
+  <div class="card-title-flex">
+    <span class="card-title" style="margin:0;">✍️ التأشير: حاضر / غائب</span>
+    <span>
+      <button type="button" class="btn" onclick="toutCocher(1)">✔ الكلّ حاضر</button>
+      <button type="button" class="btn" onclick="toutCocher(0)">✖ الكلّ غائب</button>
+    </span>
+  </div>
+
+  {% set multi = jours|length > 1 %}
+  {% if participants and multi %}
+  {# V2 — دورة متعدّدة الأيّام : un حاضر/غائب par مشارك ET par jour (case
+     cochée = حاضر). Le صنف de la دورة se déduit de TOUS les jours : chaque
+     jour de présence d'un مشارك compte. #}
+  <p class="hodour-aide">
+    📅 دورة متعدّدة الأيّام ({{ jours|length }} أيّام): أشّر على حضور كلّ مشارك في كلّ يوم
+    (مربّع مؤشَّر = حاضر). يُحتسب صنف الدورة من مجموع أيّام الحضور.
+  </p>
+  <div class="table-wrapper">
+    <table class="list-table" id="tableHodour" data-multi="1">
+      <thead>
+        <tr>
+          <th style="width:46px;">ر.ع</th>
+          <th>الاسم واللقب</th>
+          <th>الرتبة</th>
+          <th>الصنف</th>
+          {% for j in jours %}
+          <th class="th-jour">
+            <div>{{ j.libelle }}</div>
+            <div class="th-jour-date"><bdi dir="ltr">{{ j.date[8:10] }}/{{ j.date[5:7] }}</bdi> {{ j.semaine }}</div>
+            {% if j.periode %}<div class="th-jour-date">({{ j.periode }})</div>{% endif %}
+            <button type="button" class="btn-mini" onclick="toutJour({{ j.jour }}, true)" title="الكلّ حاضر في هذا اليوم">✔ الكلّ</button>
+          </th>
+          {% endfor %}
+          <th style="text-align:center;">أيّام الحضور</th>
+          <th>ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in participants %}
+        <tr data-pid="{{ p.id }}" data-classe="{{ p.classe }}">
+          <td class="num-cell">{{ loop.index }}</td>
+          <td><strong>{{ p.nom_prenom }}</strong></td>
+          <td>{{ p.grade or '—' }}</td>
+          <td>
+            {% if p.classe %}<span class="puce-classe">{{ p.classe }}</span>
+            {% else %}<span style="color:var(--text-light);font-size:.85rem;">غير مصنّف</span>{% endif %}
+          </td>
+          {% for j in jours %}
+          <td style="text-align:center;">
+            <input type="checkbox" class="ck-jour" data-jour="{{ j.jour }}" onchange="majCompteurs()"
+                   {% if p.jours[j.jour] %}checked{% endif %}>
+          </td>
+          {% endfor %}
+          <td style="text-align:center;"><strong class="nb-jours-p">0</strong>/{{ jours|length }}</td>
+          <td class="obs-p" style="font-size:.84rem;color:#b91c1c;"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="bandeau-compte">
+    <span>🙋 حضروا يومًا على الأقلّ: <strong id="nbPresents">0</strong></span>
+    <span>🚫 غابوا كامل الأيّام: <strong id="nbAbsents">0</strong></span>
+    <span>📊 مجموع أيّام الحضور: <strong id="nbPresJours">0</strong> / {{ participants|length * jours|length }}</span>
+    <span>👥 الجملة: <strong>{{ participants|length }}</strong></span>
+  </div>
+
+  <div class="actions-bar" style="margin-top:1.2rem;">
+    <button type="button" class="btn btn-generate" id="btnConfirmer" onclick="envoyerHodour()">
+      ✔ تأكيد
+    </button>
+    <a href="{{ url_for('mustahaqqat_ghayr_manjaza') }}" class="btn btn-cancel">إلغاء</a>
+  </div>
+
+  {% elif participants %}
+  <div class="table-wrapper">
+    <table class="list-table" id="tableHodour">
+      <thead>
+        <tr>
+          <th style="width:46px;">ر.ع</th>
+          <th>الاسم واللقب</th>
+          <th>الرتبة</th>
+          <th>الصنف</th>
+          <th>المعرّف الوحيد</th>
+          <th>مقرّ العمل</th>
+          <th style="width:96px;text-align:center;">حاضر</th>
+          <th style="width:96px;text-align:center;">غائب</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in participants %}
+        <tr data-pid="{{ p.id }}" data-classe="{{ p.classe }}">
+          <td class="num-cell">{{ loop.index }}</td>
+          <td><strong>{{ p.nom_prenom }}</strong></td>
+          <td>{{ p.grade or '—' }}</td>
+          <td>
+            {% if p.classe %}
+              <span class="puce-classe">{{ p.classe }}</span>
+            {% else %}
+              <span style="color:var(--text-light);font-size:.85rem;">غير مصنّف</span>
+            {% endif %}
+          </td>
+          <td>{{ p.identifiant_unique or '—' }}</td>
+          <td>{{ p.lieu_travail or '—' }}</td>
+          <td style="text-align:center;">
+            <input type="radio" name="p{{ p.id }}" value="1" class="rd rd-present"
+                   onchange="majCompteurs()" {% if p.present %}checked{% endif %}>
+          </td>
+          <td style="text-align:center;">
+            <input type="radio" name="p{{ p.id }}" value="0" class="rd rd-absent"
+                   onchange="majCompteurs()" {% if not p.present %}checked{% endif %}>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="bandeau-compte">
+    <span>🙋 الحاضرون: <strong id="nbPresents">0</strong></span>
+    <span>🚫 الغائبون: <strong id="nbAbsents">0</strong></span>
+    <span>👥 الجملة: <strong>{{ participants|length }}</strong></span>
+  </div>
+
+  <div class="actions-bar" style="margin-top:1.2rem;">
+    <button type="button" class="btn btn-generate" id="btnConfirmer" onclick="envoyerHodour()">
+      ✔ تأكيد
+    </button>
+    <a href="{{ url_for('mustahaqqat_ghayr_manjaza') }}" class="btn btn-cancel">إلغاء</a>
+  </div>
+
+  {% else %}
+  <div class="empty-msg">لا يوجد مشاركون مسجَّلون في هذه الدورة.</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .puce-classe {
+    display:inline-block; min-width:34px; text-align:center;
+    background:var(--primary); color:#fff; border-radius:999px;
+    padding:.1rem .55rem; font-size:.85rem; font-weight:700;
+  }
+  .rd { width:19px; height:19px; cursor:pointer; }
+  .rd-present:checked { accent-color:#1a7a3a; }
+  .rd-absent:checked  { accent-color:#cc2200; }
+  tr.est-absent { background:rgba(204,34,0,.055); }
+  /* V2 — دورة متعدّدة الأيّام */
+  .hodour-aide { margin:.2rem 0 .8rem; font-size:.9rem; color:var(--text-muted); }
+  .th-jour { text-align:center; min-width:92px; }
+  .th-jour-date { font-weight:400; font-size:.78rem; opacity:.9; }
+  .btn-mini { margin-top:.25rem; border:1px solid rgba(255,255,255,.6); background:transparent;
+              color:inherit; border-radius:6px; font-size:.72rem; padding:.05rem .45rem;
+              cursor:pointer; font-family:inherit; }
+  .ck-jour { width:19px; height:19px; cursor:pointer; accent-color:#1a7a3a; }
+  td:has(> .ck-jour:not(:checked)) { background:rgba(204,34,0,.07); }
+
+  .bandeau-compte {
+    display:flex; gap:1.6rem; flex-wrap:wrap; margin-top:1rem;
+    padding:.8rem 1.1rem; background:var(--bg);
+    border:1px solid var(--border); border-radius:10px;
+    font-size:.95rem; color:var(--text);
+  }
+
+  /* ── نافذة تأكيد الصنف ───────────────────────────────────────────────── */
+  .mo-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.58); z-index:10000;
+    display:none; align-items:center; justify-content:center; padding:1rem;
+  }
+  .mo-box {
+    background:var(--card-bg); border-radius:16px; padding:2rem 1.9rem;
+    max-width:560px; width:100%; direction:rtl; text-align:right;
+    box-shadow:0 20px 56px rgba(0,0,0,.4);
+  }
+  .mo-titre { font-size:1.2rem; font-weight:700; color:var(--primary-txt, var(--primary)); margin-bottom:1rem; }
+  .mo-texte { font-size:1.02rem; line-height:1.95; color:var(--text); }
+  .mo-classe {
+    display:inline-block; background:var(--primary); color:#fff;
+    border-radius:10px; padding:.2rem .9rem; font-weight:700; font-size:1.25rem;
+    margin:0 .25rem;
+  }
+  .mo-detail {
+    margin-top:1.1rem; padding:.85rem 1rem; background:var(--bg);
+    border:1px solid var(--border); border-radius:10px;
+    display:flex; gap:.6rem; flex-wrap:wrap; font-size:.9rem;
+  }
+  .mo-detail span { background:var(--card-bg); border:1px solid var(--border);
+                    border-radius:999px; padding:.15rem .7rem; }
+  .mo-avert {
+    margin-top:.9rem; font-size:.88rem; line-height:1.8; color:#8a5a00;
+    background:rgba(240,180,40,.14); border:1px solid rgba(200,150,30,.4);
+    border-radius:10px; padding:.7rem .9rem;
+  }
+  .mo-actions { display:flex; gap:.8rem; flex-wrap:wrap; margin-top:1.5rem; }
+  .mo-btn { border:none; border-radius:9px; padding:.7rem 1.5rem; font-size:1rem;
+            font-family:inherit; font-weight:700; color:#fff; cursor:pointer; }
+  .mo-oui { background:#1a7a3a; }
+  .mo-non { background:#cc2200; }
+</style>
+
+<div class="mo-overlay" id="moClasse">
+  <div class="mo-box">
+    <div class="mo-titre">⚖️ تصنيف الدورة</div>
+    <div class="mo-texte" id="moTexte"></div>
+    <div class="mo-detail" id="moDetail"></div>
+    <div class="mo-avert" id="moAvert" style="display:none;"></div>
+    <div class="mo-actions">
+      <button type="button" class="mo-btn mo-oui" onclick="approuverClasse()">✔ موافق</button>
+      <button type="button" class="mo-btn mo-non" onclick="refuserClasse()">✖ رفض — تحيين الحضور</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const FORMATION_ID = {{ dorra.id }};
+const MULTI = {{ 'true' if (jours|length) > 1 else 'false' }};
+const NB_JOURS = {{ jours|length }};
+let classeProposee = '';
+
+/* ── التأشير ───────────────────────────────────────────────────────────── */
+
+function toutCocher(present) {
+  if (MULTI) {
+    document.querySelectorAll('#tableHodour .ck-jour').forEach(function (c) { c.checked = !!present; });
+    majCompteurs();
+    return;
+  }
+  document.querySelectorAll('#tableHodour tbody tr').forEach(function (tr) {
+    const r = tr.querySelector(present ? '.rd-present' : '.rd-absent');
+    if (r) r.checked = true;
+  });
+  majCompteurs();
+}
+
+// V2 : tout le monde présent un jour donné
+function toutJour(n, present) {
+  document.querySelectorAll('#tableHodour .ck-jour[data-jour="' + n + '"]')
+    .forEach(function (c) { c.checked = !!present; });
+  majCompteurs();
+}
+
+function majCompteursMulti() {
+  let p = 0, a = 0, total = 0;
+  document.querySelectorAll('#tableHodour tbody tr').forEach(function (tr) {
+    const cks = tr.querySelectorAll('.ck-jour');
+    const abs = [];
+    let n = 0;
+    cks.forEach(function (c) { if (c.checked) n++; else abs.push(c.getAttribute('data-jour')); });
+    tr.querySelector('.nb-jours-p').textContent = n;
+    tr.querySelector('.obs-p').textContent = abs.length
+      ? (abs.length === cks.length ? 'غائب كامل الأيّام' : 'غياب: ي' + abs.join('، ي')) : '';
+    tr.classList.toggle('est-absent', n === 0);
+    total += n;
+    if (n) p++; else a++;
+  });
+  document.getElementById('nbPresents').textContent = p;
+  document.getElementById('nbAbsents').textContent  = a;
+  document.getElementById('nbPresJours').textContent = total;
+}
+
+function majCompteurs() {
+  if (MULTI) return majCompteursMulti();
+  let p = 0, a = 0;
+  document.querySelectorAll('#tableHodour tbody tr').forEach(function (tr) {
+    const present = tr.querySelector('.rd-present').checked;
+    tr.classList.toggle('est-absent', !present);
+    if (present) p++; else a++;
+  });
+  document.getElementById('nbPresents').textContent = p;
+  document.getElementById('nbAbsents').textContent  = a;
+}
+
+function lirePresences() {
+  const presences = {};
+  if (MULTI) {
+    document.querySelectorAll('#tableHodour tbody tr').forEach(function (tr) {
+      const pj = {};
+      tr.querySelectorAll('.ck-jour').forEach(function (c) { pj[c.getAttribute('data-jour')] = c.checked; });
+      presences[tr.getAttribute('data-pid')] = pj;
+    });
+    return presences;
+  }
+  let complet = true;
+  document.querySelectorAll('#tableHodour tbody tr').forEach(function (tr) {
+    const pid = tr.getAttribute('data-pid');
+    const oui = tr.querySelector('.rd-present').checked;
+    const non = tr.querySelector('.rd-absent').checked;
+    if (!oui && !non) { complet = false; return; }
+    presences[pid] = oui;
+  });
+  return complet ? presences : null;
+}
+
+/* ── الإرسال ثمّ نافذة التأكيد ─────────────────────────────────────────── */
+
+async function envoyerHodour() {
+  const presences = lirePresences();
+  if (!presences) {
+    showAlertModal('يجب التأشير على كلّ المشاركين: حاضر أو غائب.');
+    return;
+  }
+  const btn = document.getElementById('btnConfirmer');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/mustahaqqat/dorra/' + FORMATION_ID + '/hodour', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ presences: presences })
+    });
+    const d = await res.json();
+    if (!res.ok || d.erreur) { showAlertModal(d.erreur || 'تعذّر الحفظ'); return; }
+    afficherModale(d);
+  } catch (e) {
+    showAlertModal('خطأ في الاتصال: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function afficherModale(d) {
+  classeProposee = d.classe || '';
+  const texte  = document.getElementById('moTexte');
+  const detail = document.getElementById('moDetail');
+  const avert  = document.getElementById('moAvert');
+
+  if (!classeProposee) {
+    texte.innerHTML = 'لا يمكن تصنيف هذه الدورة: لا يوجد بين الحاضرين أيّ رتبة '
+                    + 'مدرجة في جدول الأصناف.<br>راجع ورقة الحضور أو جدول الأصناف.';
+    detail.innerHTML = '';
+    avert.style.display = 'none';
+    document.querySelector('.mo-oui').style.display = 'none';
+  } else {
+    document.querySelector('.mo-oui').style.display = '';
+    texte.innerHTML = 'الدورة التي أمامك سيتمّ تصنيفها إلى '
+                    + '<span class="mo-classe">' + classeProposee + '</span><br>'
+                    + (d.nb_jours
+                       ? 'بناءً على ' + d.presences_jours + ' حضورًا يوميًّا على مدى ' + d.nb_jours
+                         + ' أيّام (' + d.nb_presents + ' مشاركًا حضروا يومًا على الأقلّ).'
+                       : 'بناءً على ' + d.nb_presents + ' حاضرًا و' + d.nb_absents + ' غائبًا.');
+    let html = '';
+    const r = d.repartition || {};
+    Object.keys(r).forEach(function (c) {
+      if (!c) return;
+      html += '<span>الصنف ' + c + ': <strong>' + r[c] + '</strong></span>';
+    });
+    detail.innerHTML = html;
+
+    if (d.ex_aequo && d.ex_aequo.length > 1) {
+      avert.style.display = '';
+      avert.innerHTML = '⚠ تساوى عدد ' + (d.nb_jours ? 'أيّام الحضور' : 'الحاضرين') + ' بين الأصناف ('
+                      + d.ex_aequo.join('، ') + '). '
+                      + 'اعتمدت المنظومة الصنف الأعلى: <strong>' + classeProposee + '</strong>.';
+    } else {
+      avert.style.display = 'none';
+    }
+  }
+  document.getElementById('moClasse').style.display = 'flex';
+}
+
+/* ── موافقة / رفض ──────────────────────────────────────────────────────── */
+
+async function approuverClasse() {
+  try {
+    const res = await fetch('/mustahaqqat/dorra/' + FORMATION_ID + '/classe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classe: classeProposee })
+    });
+    const d = await res.json();
+    if (!res.ok || d.erreur) { showAlertModal(d.erreur || 'تعذّر تأكيد الصنف'); return; }
+    location.href = d.suite;
+  } catch (e) {
+    showAlertModal('خطأ في الاتصال: ' + e.message);
+  }
+}
+
+async function refuserClasse() {
+  document.getElementById('moClasse').style.display = 'none';
+  try {
+    await fetch('/mustahaqqat/dorra/' + FORMATION_ID + '/reprendre', { method: 'POST' });
+  } catch (e) { /* le retour au pointage reste possible même sans réponse */ }
+}
+
+document.addEventListener('DOMContentLoaded', majCompteurs);
+</script>
+{% endblock %}

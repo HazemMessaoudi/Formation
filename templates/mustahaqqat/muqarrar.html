@@ -1,0 +1,96 @@
+{% extends "base_mustahaqqat.html" %}
+{% block title %}مقرّر الدورة – {{ dorra.titre }}{% endblock %}
+
+{#  مقرّر الدورة — le premier écran après le choix d'une دورة.
+    « لا يمكن إسناد مستحقّات مالية بدون وجود مقرّر » : tant que ce formulaire
+    n'est pas rempli, ni ورقة الحضور, ni الصنف, ni القيمة المالية ne s'ouvrent.
+    Chaque دورة a son مقرّر ; il est imprimé tel quel dans وثائق الخلاص. #}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;">
+  <h1>📜 مقرّر الدورة</h1>
+  <a href="{{ url_for('mustahaqqat_ghayr_manjaza') }}" class="btn btn-cancel">↩ رجوع إلى قائمة الدورات</a>
+</div>
+
+<div class="card">
+  <div class="card-title">📋 الدورة المختارة</div>
+  <div class="fiche-grid">
+    <div class="fiche-row"><div class="fiche-lbl">عنوان الدورة</div><div class="fiche-val">{{ dorra.titre }}</div></div>
+    <div class="fiche-row"><div class="fiche-lbl">تاريخ الدورة</div><div class="fiche-val">{{ dorra|dates_dorra }}</div></div>
+    <div class="fiche-row"><div class="fiche-lbl">المكوّن</div><div class="fiche-val">{{ dorra.grade }} {{ dorra.nom_formateur or '—' }}</div></div>
+    <div class="fiche-row"><div class="fiche-lbl">مرجع المراسلة</div><div class="fiche-val">{{ dorra.lettre_ref or '—' }}</div></div>
+  </div>
+</div>
+
+<div class="card muq-carte" style="margin-top:1.3rem;">
+  <div class="card-title">✍️ مقرّر التعيين الخاصّ بهذه الدورة</div>
+  <p class="muq-regle">
+    🔒 لا يمكن إسناد مستحقّات مالية دون مقرّر. أدخل عدده وتاريخه للمرور إلى ورقة الحضور؛
+    ويُطبعان كما هما في وثائق الخلاص.
+  </p>
+
+  {% if erreurs %}
+  <div class="alert alert-error">{% for e in erreurs %}<div>{{ e }}</div>{% endfor %}</div>
+  {% endif %}
+
+  <form method="POST" autocomplete="off" id="muqForm">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+    <input type="hidden" name="suite" value="{{ suite }}">
+    <div class="muq-grille">
+      <div class="form-group">
+        <label for="muqNum">عدد المقرّر <span class="req">*</span></label>
+        <input type="text" id="muqNum" name="muqarrar_numero" value="{{ numero }}"
+               required autofocus dir="ltr" placeholder="مثال: 10101856">
+      </div>
+      <div class="form-group">
+        <label for="muqDate">تاريخ المقرّر <span class="req">*</span></label>
+        <input type="date" id="muqDate" name="muqarrar_date" value="{{ date_m }}" required
+               {% if date_min %}min="{{ date_min }}"{% endif %}>
+        {% if date_min %}
+        <small class="muq-aide">يجب أن يكون بعد تاريخ الدورة (<bdi dir="ltr">{{ dorra.derniere_date or dorra.date_formation }}</bdi>)، لا في نفس اليوم ولا قبله.</small>
+        <small class="muq-erreur" id="muqDateErr" style="display:none;">⚠ تاريخ المقرّر يجب أن يكون بعد تاريخ الدورة.</small>
+        {% endif %}
+      </div>
+    </div>
+    <div class="actions-bar" style="margin-top:1.3rem;justify-content:flex-start;">
+      <button type="submit" class="btn btn-save">✔ حفظ ومتابعة</button>
+    </div>
+  </form>
+</div>
+
+<style>
+  .muq-regle {
+    background:var(--bg); border:1px dashed var(--accent); border-radius:9px;
+    padding:.7rem .95rem; margin:.2rem 0 1.1rem; color:var(--text); line-height:1.85; font-size:.93rem;
+  }
+  .muq-grille { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); }
+  .muq-grille input[type="date"] {
+    border:1px solid var(--border); border-radius:6px; padding:.5rem .75rem;
+    font-size:.95rem; font-family:inherit; color:var(--text); background:var(--card-bg);
+  }
+  .muq-aide   { display:block; margin-top:.3rem; color:var(--text-muted); font-size:.8rem; }
+  .muq-erreur { display:block; margin-top:.3rem; color:#b91c1c; font-size:.82rem; font-weight:600; }
+</style>
+{% if date_min %}
+<script>
+// v1.6.1 : alerte immédiate — le serveur refuse de toute façon.
+(function () {
+  const champ = document.getElementById('muqDate');
+  const err   = document.getElementById('muqDateErr');
+  const MIN   = '{{ date_min }}';
+  function verifier() {
+    const ko = champ.value && champ.value < MIN;
+    err.style.display = ko ? '' : 'none';
+    champ.style.borderColor = ko ? '#b91c1c' : '';
+    return !ko;
+  }
+  champ.addEventListener('input', verifier);
+  champ.addEventListener('change', verifier);
+  document.getElementById('muqForm').addEventListener('submit', e => {
+    if (!verifier()) { e.preventDefault(); champ.focus(); }
+  });
+  verifier();
+})();
+</script>
+{% endif %}
+{% endblock %}

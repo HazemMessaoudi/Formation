@@ -1,0 +1,85 @@
+{% extends "base_parametres.html" %}
+{% block title %}سجلّ التدقيق{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:.4rem;">
+  <h1>🗂️ سجلّ التدقيق</h1>
+</div>
+<p style="color:var(--text-muted);margin-bottom:1rem;">
+  {% if filtre_actif %}{{ entrees|length }} عمليّة مطابقة للبحث{% if entrees|length >= 1000 %} (تُعرض أحدث 1000){% endif %}.
+  {% else %}آخر {{ entrees|length }} عمليّة مسجَّلة — من قام بها ومتى.{% endif %}
+</p>
+
+{# S1 (v1.5) : recherche dans TOUT le journal, côté serveur #}
+<form method="get" class="card journal-filtres">
+  <label>المستعمل
+    <select name="utilisateur">
+      <option value="">— الكلّ —</option>
+      {% for u in utilisateurs %}<option value="{{ u }}" {% if filtres.utilisateur == u %}selected{% endif %}>{{ u }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>من تاريخ <input type="date" name="du" value="{{ filtres.du }}"></label>
+  <label>إلى تاريخ <input type="date" name="au" value="{{ filtres.au }}"></label>
+  <label style="flex:1;min-width:180px;">العمليّة أو العنصر <input type="text" name="q" value="{{ filtres.q }}" placeholder="مثال: ترقيم، حذف، تصدير…"></label>
+  <div class="journal-filtres__actions">
+    <button type="submit" class="btn btn-save">🔍 بحث</button>
+    {% if filtre_actif %}<a href="{{ url_for('page_journal') }}" class="btn btn-cancel">✖ مسح</a>{% endif %}
+    <a href="{{ url_for('exporter_journal', **filtres) }}" class="btn btn-cancel" data-sans-apercu>⬇ Excel</a>
+  </div>
+</form>
+
+{% if entrees %}
+<div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem;">
+  <input type="text" id="rechJournal" oninput="filtrerJournal()" data-memoriser="texte" placeholder="بحث في السجلّ..."
+         style="flex:1;min-width:220px;padding:.5rem .85rem;border:1.5px solid var(--border);
+                border-radius:8px;background:var(--card-bg);color:var(--text);
+                font-size:.92rem;text-align:right;direction:rtl;">
+  <span id="cptJournal" style="color:var(--text-muted);font-size:.85rem;white-space:nowrap;"></span>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  <table class="list-table table-triable" data-renumeroter>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>التاريخ والساعة</th>
+        <th>المستعمل</th>
+        <th>العمليّة</th>
+        <th>العنصر</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entrees %}
+      <tr>
+        <td class="num-cell">{{ loop.index }}</td>
+        <td dir="ltr" style="white-space:nowrap;">{{ e.horodatage }}</td>
+        <td><strong>{{ e.utilisateur or '—' }}</strong></td>
+        <td>{{ e.action }}</td>
+        <td style="color:var(--text-muted);">{{ e.cible or '—' }}{% if e.details %} · {{ e.details }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+{% if filtre_actif %}<div class="empty-msg empty-msg--recherche"><strong>لا توجد عمليّات مطابقة</strong><span>غيّر معايير البحث أو امسحها.</span></div>
+{% else %}<div class="empty-msg">لا توجد عمليّات مسجَّلة بعد.</div>{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filtrerJournal() {
+  const q = (document.getElementById('rechJournal').value || '').trim().toLowerCase();
+  const rows = document.querySelectorAll('.list-table tbody tr');
+  let n = 0;
+  rows.forEach(tr => {
+    const ok = !q || tr.textContent.toLowerCase().includes(q);
+    tr.style.display = ok ? '' : 'none';
+    if (ok) { n++; const c = tr.querySelector('.num-cell'); if (c) c.textContent = n; }
+  });
+  document.getElementById('cptJournal').textContent = q ? n + ' نتيجة' : '';
+  majEtatVide(document.querySelector('.list-table'), n, document.getElementById('rechJournal').value.trim());
+}
+</script>
+{% endblock %}

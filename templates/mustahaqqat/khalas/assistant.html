@@ -1,0 +1,332 @@
+{% extends "base_mustahaqqat.html" %}
+{% block title %}طباعة وثائق الخلاص – {{ d.titre }}{% endblock %}
+
+{#  ═══════════════════════════════════════════════════════════════════════════
+    معالج توليد وثائق الخلاص — أربع خطوات، أربع وثائق رسمية.
+
+    Rien n'est re-saisi : chaque champ arrive prérempli depuis la منظومة
+    (الدورة، المستحقّات، fiche المكوّن، الإعدادات). L'agent ne complète que ce
+    qui manque réellement. « حفظ » met à jour la fiche du المكوّن pour la fois
+    d'après. Les documents sont produits À PARTIR des modèles officiels — voir
+    core/pdf_khalas.py — jamais redessinés.
+    ═══════════════════════════════════════════════════════════════════════════ #}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;">
+  <h1>🖨️ طباعة وثائق الخلاص</h1>
+  <a href="{{ url_for('mustahaqqat_manjaza') }}" class="btn btn-cancel">↩ قائمة الدورات</a>
+</div>
+
+<p style="color:var(--text-light);line-height:1.85;margin-bottom:1rem;">
+  الدورة: <strong>{{ d.titre }}</strong> — المكوّن: <strong>{{ d.formateur_grade }} {{ d.formateur_nom }}</strong>
+  — الصنف: <strong>{{ d.classe }}</strong> — التاريخ: <strong>{{ d.date_longue }}</strong>
+</p>
+
+{% if manque %}
+<div class="card" style="border-inline-start:4px solid var(--accent);margin-bottom:1rem;">
+  <div class="card-title" style="color:#8a6100;">⚠ معطيات ناقصة</div>
+  <p style="color:var(--text-light);line-height:1.9;margin:0;">
+    لإخراج وثائق كاملة، أكمل: <strong>{{ manque | join('، ') }}</strong>.
+    يمكنك المتابعة، لكن الخانات الناقصة ستظهر فارغة.
+  </p>
+</div>
+{% endif %}
+
+{% if not d.mkow_trouve %}
+<div class="card" style="border-inline-start:4px solid var(--primary);margin-bottom:1rem;">
+  <p style="margin:0;color:var(--text-light);line-height:1.9;">
+    ℹ️ المكوّن «{{ d.formateur_nom }}» غير موجود في <strong>قائمة الأسماء</strong>.
+    ما تُدخله من بيانات شخصية سيُحفظ في فيش جديد لإعادة استعماله لاحقًا.
+  </p>
+</div>
+{% endif %}
+
+{# ── مؤشّر الخطوات ──────────────────────────────────────────────────────── #}
+<div class="kh-stepper" id="khStepper">
+  {% for k in docs %}
+  <div class="kh-step {% if loop.first %}active{% endif %}" data-step="{{ loop.index }}">
+    <span class="kh-step-num">{{ loop.index }}</span>
+    <span class="kh-step-lbl">{{ titres[k] }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<form id="khForm" onsubmit="return false;">
+
+  {# ── الخطوة 1 : مذكرة ──────────────────────────────────────────────────── #}
+  <section class="kh-panneau card" data-panneau="1">
+    <div class="card-title">1 · مذكرة — المراجع الإدارية</div>
+    <div class="kh-grid">
+      <label>عدد المذكرة
+        <input type="text" name="numero_mudhakkira" value="{{ d.numero_mudhakkira }}" placeholder="مثال: 1">
+      </label>
+    </div>
+    {# Le مقرّر de LA دورة, saisi à l'entrée du قسم : affiché, pas ressaisi. #}
+    <div class="kh-muqarrar">
+      <span>📜 مقرّر التعيين:</span>
+      {% if d.muqarrar_numero %}
+        <strong>عدد {{ d.muqarrar_numero }}</strong> بتاريخ <strong>{{ d.muqarrar_date }}</strong>
+      {% else %}
+        <strong style="color:#b91c1c;">غير مُدخَل</strong>
+      {% endif %}
+      <a href="{{ url_for('mustahaqqat_muqarrar', formation_id=d.formation_id) }}">✏️ تغيير</a>
+      {# v1.6.1 : un مقرّر saisi avant la règle, daté du jour de la دورة ou avant #}
+      {% if d.muqarrar_date_iso and d.date_fin_iso and d.muqarrar_date_iso[:10] <= d.date_fin_iso[:10] %}
+        <div class="kh-muq-alerte" style="flex-basis:100%;color:#b91c1c;font-weight:600;font-size:.88rem;">
+          ⚠ تاريخ المقرّر يجب أن يكون بعد تاريخ الدورة (<bdi dir="ltr">{{ d.date_fin_iso[:10] }}</bdi>) — يرجى تصحيحه عبر «تغيير».
+        </div>
+      {% endif %}
+    </div>
+    <p class="kh-note">
+      الأمر المتعلق بالتأجير: <strong>{{ d.ordre_tajir }}</strong>
+      — يُحيَّن من «إعدادات وثائق الخلاص».
+    </p>
+    <div class="kh-apercu">
+      <div><span>عدد الساعات</span><strong>{{ d.heures }}</strong></div>
+      <div><span>سعر الساعة</span><strong dir="ltr">{{ d.taux_texte }} د</strong></div>
+      <div><span>المبلغ الخام</span><strong dir="ltr">{{ d.brut_texte }} د</strong></div>
+      <div><span>الأداءات ({{ d.taux_adaat|int }}%)</span><strong dir="ltr">{{ d.adaat_texte }} د</strong></div>
+      <div class="kh-net"><span>المبلغ الصافي</span><strong dir="ltr">{{ d.net_texte }} د</strong></div>
+    </div>
+    <p class="kh-note">المبلغ بالأحرف: <strong>{{ d.montant_lettres }}</strong></p>
+    <button type="button" class="btn btn-view kh-preview" data-doc="mudhakkira">👁 معاينة المذكرة</button>
+  </section>
+
+  {# ── الخطوة 2 : بطاقة إرشادات حول المكون ───────────────────────────────── #}
+  <section class="kh-panneau card" data-panneau="2" hidden>
+    <div class="card-title">2 · بطاقة إرشادات حول المكون — بيانات المكوّن</div>
+    <div class="kh-grid">
+      <label>رقم بطاقة التعريف الوطنية
+        <input type="text" name="cin" data-verif="cin" inputmode="numeric" maxlength="12" value="{{ d.cin }}" dir="ltr"></label>
+      <label>الصادرة بتاريخ
+        <input type="text" name="cin_date" value="{{ d.cin_date }}"></label>
+      <label>المعرف الوحيد
+        <input type="text" name="identifiant_unique" value="{{ d.identifiant_unique }}"></label>
+      <label>العنوان الشخصي
+        <input type="text" name="adresse" value="{{ d.adresse }}"></label>
+      <label>الهاتف الجوال
+        <input type="text" name="telephone_gsm" value="{{ d.telephone_gsm }}"></label>
+      <label>الهاتف الإداري
+        <input type="text" name="telephone_adm" value="{{ d.telephone_adm }}"></label>
+      <label>الشهادة العلمية
+        <input type="text" name="diplome" value="{{ d.diplome }}"></label>
+      <label>الدرجة
+        <input type="text" name="degre" value="{{ d.degre }}"></label>
+      <label>الخطة الوظيفية
+        <input type="text" name="plan_fonctionnel" value="{{ d.plan_fonctionnel }}"></label>
+      <label>الإدارة
+        <input type="text" name="administration" value="{{ d.administration }}"></label>
+      <label>وزارة الإشراف
+        <input type="text" name="ministere" value="{{ d.ministere }}"></label>
+      <label>البريد الإلكتروني
+        <input type="text" name="email" value="{{ d.email }}"></label>
+      <label>البنك
+        <input type="text" name="banque" value="{{ d.banque }}"></label>
+      <label>الفرع
+        <input type="text" name="agence" value="{{ d.agence }}"></label>
+      <label class="kh-large">الهوية البنكية أو البريدية (RIB)
+        <input type="text" name="num_compte" data-verif="rib" inputmode="numeric" maxlength="30" value="{{ d.num_compte }}" dir="ltr"></label>
+    </div>
+    <div class="kh-grid" style="margin-top:.6rem;">
+      <label>نوع التكوين
+        <select name="type_takwin">
+          <option value="mustamir" {% if d.type_takwin=='mustamir' %}selected{% endif %}>تكوين مستمر</option>
+          <option value="tahili"   {% if d.type_takwin=='tahili'   %}selected{% endif %}>تكوين تأهيلي</option>
+        </select></label>
+      <label>عدد الساعات المبرمجة
+        <input type="text" name="heures_programmees" value="{{ d.heures_prog }}"></label>
+      <label>عدد الساعات المنجزة
+        <input type="text" name="heures_realisees" value="{{ d.heures_real }}"></label>
+      <label class="kh-large">الملاحظات
+        <input type="text" name="notes" value="{{ d.notes }}"></label>
+    </div>
+    <button type="button" class="btn btn-view kh-preview" data-doc="bitaqa">👁 معاينة البطاقة</button>
+  </section>
+
+  {# ── الخطوة 3 : جدول بيان حساب ─────────────────────────────────────────── #}
+  <section class="kh-panneau card" data-panneau="3" hidden>
+    <div class="card-title">3 · جدول بيان حساب — مراجعة</div>
+    <p class="kh-note">كلّ بيانات هذا الجدول محتسبة آليًّا من الخطوتين السابقتين — راجِعها ثمّ عايِن.</p>
+    <div class="table-wrapper">
+      <table class="list-table">
+        <thead><tr>
+          <th>الإسم واللقب</th><th>الرتبة</th><th>الصنف</th><th>الساعات</th>
+          <th>سعر الساعة</th><th>الخام</th><th>الأداءات</th><th>الصافي</th>
+        </tr></thead>
+        <tbody><tr>
+          <td>{{ d.formateur_nom }}</td><td>{{ d.formateur_grade }}</td><td>{{ d.classe }}</td>
+          <td>{{ d.heures }}</td><td dir="ltr">{{ d.taux_texte }}</td>
+          <td dir="ltr">{{ d.brut_texte }}</td><td dir="ltr">{{ d.adaat_texte }}</td>
+          <td dir="ltr">{{ d.net_texte }}</td>
+        </tr></tbody>
+      </table>
+    </div>
+    <p class="kh-note">المبلغ بالأحرف: <strong>{{ d.montant_lettres }}</strong></p>
+    <button type="button" class="btn btn-view kh-preview" data-doc="jadwal">👁 معاينة الجدول</button>
+  </section>
+
+  {# ── الخطوة 4 : إعلام بإنجاز يوم دراسي ─────────────────────────────────── #}
+  <section class="kh-panneau card" data-panneau="4" hidden>
+    <div class="card-title">4 · إعلام بإنجاز يوم دراسي</div>
+    <div class="kh-grid">
+      <label>عدد الترخيص السنوي
+        <input type="text" name="tarkhis_numero" value="{{ d.tarkhis_numero }}"></label>
+      <label>تاريخ الترخيص السنوي
+        <input type="text" name="tarkhis_date" value="{{ d.tarkhis_date }}" placeholder="…../…../……"></label>
+    </div>
+    <p class="kh-note">
+      السند القانوني: <strong>{{ d.ordre_1995 }}</strong> — يُحيَّن من «إعدادات وثائق الخلاص».
+    </p>
+    <button type="button" class="btn btn-view kh-preview" data-doc="iaam">👁 معاينة الإعلام</button>
+  </section>
+
+</form>
+
+{# ── شريط الإجراءات ─────────────────────────────────────────────────────── #}
+<div class="kh-actions">
+  <div class="kh-nav">
+    <button type="button" class="btn btn-cancel" id="khPrev">◀ السابق</button>
+    <button type="button" class="btn" id="khNext">التالي ▶</button>
+  </div>
+  <div class="kh-final">
+    <button type="button" class="btn btn-save" id="khSave">💾 حفظ</button>
+    <button type="button" class="btn btn-generate" id="khAll">📄 معاينة الوثائق الأربع</button>
+    <a class="btn btn-view" id="khDl" href="#">⬇ تحميل PDF (الكل)</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .kh-stepper{ display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.1rem; }
+  .kh-step{ flex:1;min-width:150px;display:flex;align-items:center;gap:.5rem;
+            padding:.6rem .8rem;border:1px solid var(--border);border-radius:10px;
+            background:var(--card-bg);color:var(--text-light);cursor:pointer;transition:.2s; }
+  .kh-step.active{ background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700; }
+  .kh-step.done{ background:var(--glow-2);border-color:var(--primary-l);color:var(--primary-txt, var(--primary)); }
+  .kh-step-num{ width:24px;height:24px;border-radius:50%;display:flex;align-items:center;
+                justify-content:center;background:rgba(255,255,255,.25);font-weight:700;font-size:.85rem; }
+  .kh-step.active .kh-step-num{ background:rgba(255,255,255,.3); }
+  .kh-step:not(.active) .kh-step-num{ background:var(--bg);color:var(--text-light); }
+  .kh-step-lbl{ font-size:.9rem;line-height:1.3; }
+
+  .kh-grid{ display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem; }
+  .kh-grid label{ display:flex;flex-direction:column;gap:.3rem;font-size:.9rem;color:var(--text-light); }
+  .kh-grid .kh-large{ grid-column:1/-1; }
+  .kh-grid input,.kh-grid select{ padding:.5rem .6rem;border:1px solid var(--border);border-radius:8px;
+    background:var(--card-bg);color:var(--text);font-family:inherit;font-size:.95rem; }
+  .kh-grid input:focus,.kh-grid select:focus{ outline:2px solid var(--primary-l);outline-offset:1px; }
+
+  .kh-note{ color:var(--text-light);font-size:.88rem;line-height:1.9;margin:.9rem 0 .2rem; }
+  .kh-muqarrar{ display:flex;flex-wrap:wrap;align-items:center;gap:.45rem;margin-top:.9rem;
+                padding:.6rem .85rem;border-radius:8px;background:var(--bg);
+                border:1px solid var(--border);font-size:.92rem; }
+  .kh-muqarrar a{ margin-inline-start:auto;font-size:.85rem; }
+  .kh-apercu{ display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1rem; }
+  .kh-apercu > div{ flex:1;min-width:120px;text-align:center;padding:.7rem .4rem;
+    background:var(--bg);border:1px solid var(--border);border-radius:10px; }
+  .kh-apercu span{ display:block;font-size:.8rem;color:var(--text-light);margin-bottom:.25rem; }
+  .kh-apercu strong{ font-size:1.15rem;color:var(--primary-txt, var(--primary));font-variant-numeric:tabular-nums; }
+  .kh-apercu .kh-net{ background:rgba(26,122,58,.10);border-color:rgba(26,122,58,.4); }
+  .kh-apercu .kh-net strong{ color:#1a7a3a; }
+
+  .kh-preview{ margin-top:1.1rem; }
+  .kh-actions{ display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+               gap:1rem;margin-top:1.3rem;padding-top:1rem;border-top:1px solid var(--border); }
+  .kh-nav,.kh-final{ display:flex;gap:.6rem;flex-wrap:wrap; }
+</style>
+<script>
+(function () {
+  const FID = {{ d.formation_id }};
+  const SAVE_URL = "{{ url_for('khalas_save', formation_id=d.formation_id) }}";
+  const PDF_BASE = "{{ url_for('khalas_pdf', formation_id=d.formation_id) }}";
+  const NB = {{ docs|length }};
+  let etape = 1;
+
+  const panneaux = document.querySelectorAll('.kh-panneau');
+  const steps = document.querySelectorAll('.kh-step');
+
+  function montrer(n) {
+    etape = Math.max(1, Math.min(NB, n));
+    panneaux.forEach(p => p.hidden = (+p.dataset.panneau !== etape));
+    steps.forEach(s => {
+      const i = +s.dataset.step;
+      s.classList.toggle('active', i === etape);
+      s.classList.toggle('done', i < etape);
+    });
+    document.getElementById('khPrev').disabled = (etape === 1);
+    document.getElementById('khNext').disabled = (etape === NB);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  steps.forEach(s => s.addEventListener('click', () => montrer(+s.dataset.step)));
+  document.getElementById('khPrev').addEventListener('click', () => montrer(etape - 1));
+  document.getElementById('khNext').addEventListener('click', () => montrer(etape + 1));
+
+  function collecter() {
+    const o = {};
+    document.querySelectorAll('#khForm [name]').forEach(el => { o[el.name] = el.value; });
+    return o;
+  }
+
+  // Alerte d'erreur ; si une خانة est en cause, elle reçoit le focus à la fermeture.
+  function signaler(e) {
+    const champ = e && e.champ;
+    showAlertModal(e.message, champ ? () => {
+      champ.focus();
+      champ.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    } : null);
+  }
+
+  async function sauver() {
+    // v1.6 : ب.ت.و (8 أرقام) و RIB (20 رقمًا) contrôlés AVANT l'envoi —
+    // on ramène l'utilisateur sur la خانة fautive. Le serveur revérifie.
+    const pb = window.champIdentiteInvalide
+             ? window.champIdentiteInvalide(document.getElementById('khForm')) : null;
+    if (pb) {
+      const p = pb.champ.closest('[data-panneau]');
+      if (p) montrer(+p.dataset.panneau);
+      const err = new Error(pb.message);
+      err.champ = pb.champ;         // focalisé à la fermeture de l'alerte
+      throw err;
+    }
+    const rep = await fetch(SAVE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collecter())
+    });
+    if (!rep.ok) { const d = await rep.json().catch(() => ({})); throw new Error(d.erreur || 'تعذّر الحفظ'); }
+    return rep.json();
+  }
+
+  // Enregistre AVANT d'ouvrir un PDF : la prévisualisation reflète la saisie.
+  async function apercu(doc) {
+    try { await sauver(); }
+    catch (e) { signaler(e); return; }
+    window.open(PDF_BASE + '/' + doc, '_blank');
+  }
+
+  document.querySelectorAll('.kh-preview').forEach(b =>
+    b.addEventListener('click', () => apercu(b.dataset.doc)));
+
+  document.getElementById('khAll').addEventListener('click', () => apercu('all'));
+
+  document.getElementById('khSave').addEventListener('click', async function () {
+    const btn = this; const t = btn.textContent; btn.disabled = true; btn.textContent = '… جارٍ الحفظ';
+    try {
+      const d = await sauver();
+      showAlertModal(d.avertissement ? d.avertissement : (d.fiche_creee ? 'تمّ الحفظ وإنشاء فيش للمكوّن.' : 'تمّ حفظ البيانات.'));
+    } catch (e) { signaler(e); }
+    finally { btn.disabled = false; btn.textContent = t; }
+  });
+
+  // Télécharger : sauver puis suivre le lien avec ?dl=1
+  document.getElementById('khDl').addEventListener('click', async function (e) {
+    e.preventDefault();
+    try { await sauver(); } catch (err) { signaler(err); return; }
+    window.location.href = PDF_BASE + '/all?dl=1';
+  });
+
+  montrer(1);
+})();
+</script>
+{% endblock %}

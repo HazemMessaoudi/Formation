@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}تحيين مادة التكوين – {{ madda.titre }}{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+  <h1>✏️ تحيين مادة التكوين</h1>
+  <a href="{{ url_for('fiche_madda', madda_id=madda.id) }}" class="btn btn-cancel">← الفيشة</a>
+</div>
+
+<div class="card">
+  <form method="post" autocomplete="off">
+
+    <!-- العنوان والنوع -->
+    <div class="form-grid-2">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>عنوان التكوين <span class="req">*</span></label>
+        <input type="text" name="titre" value="{{ madda.titre }}" required>
+      </div>
+      <div class="form-group">
+        <label>نوع التكوين</label>
+        <select name="type_formation">
+          <option value="أساسي" {% if (madda.type_formation or 'أساسي')=='أساسي' %}selected{% endif %}>أساسي</option>
+          <option value="مستمر" {% if madda.type_formation=='مستمر' %}selected{% endif %}>مستمر</option>
+          <option value="مستمر حضوري" {% if madda.type_formation=='مستمر حضوري' %}selected{% endif %}>مستمر حضوري</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- المستهدفون + مكان التكوين -->
+    <div class="form-group" style="margin-top:.4rem;">
+      <label>المستهدفون بالتكوين</label>
+      <textarea name="mustahdafun" rows="2" class="ta-field">{{ madda.mustahdafun or '' }}</textarea>
+    </div>
+    <div class="form-group">
+      <label>مكان التكوين (افتراضي)</label>
+      <input type="text" name="lieu_formation_defaut" class="ta-field" value="{{ madda.lieu_formation_defaut or '' }}" placeholder="مثال: أمانة المال الجهوية بالقصرين">
+    </div>
+
+    <!-- المحاور والأهداف -->
+    <div class="form-group" style="margin-top:.8rem;">
+      <label>محاور الدورة</label>
+      <textarea name="mahawer" rows="4" class="ta-field">{{ madda.mahawer or '' }}</textarea>
+    </div>
+    <div class="form-group">
+      <label>أهداف الدورة</label>
+      <textarea name="objectifs" rows="4" class="ta-field">{{ madda.objectifs or '' }}</textarea>
+    </div>
+
+    <!-- الطرق والمعينات -->
+    <div class="form-grid-2" style="margin-top:.4rem;">
+      <div class="form-group">
+        <label>الطرق البيداغوجية</label>
+        <textarea name="methodes_pedagogiques" rows="3" class="ta-field">{{ madda.methodes_pedagogiques or '' }}</textarea>
+      </div>
+      <div class="form-group">
+        <label>المعينات البيداغوجية</label>
+        <textarea name="moyens_pedagogiques" rows="3" class="ta-field">{{ madda.moyens_pedagogiques or '' }}</textarea>
+      </div>
+    </div>
+
+    <!-- الإعداد والتجهيزات -->
+    <div class="form-grid-2" style="margin-top:.4rem;">
+      <div class="form-group">
+        <label>الإعداد المادي</label>
+        <textarea name="preparation_materielle" rows="3" class="ta-field">{{ madda.preparation_materielle or '' }}</textarea>
+      </div>
+      <div class="form-group">
+        <label>التجهيزات والمعدات الخصوصية</label>
+        <textarea name="equipements" rows="3" class="ta-field">{{ madda.equipements or '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="actions-bar" style="gap:1rem;margin-top:1.5rem;">
+      <button type="submit" class="btn btn-save">💾 حفظ التعديلات</button>
+      <a href="{{ url_for('fiche_madda', madda_id=madda.id) }}" class="btn btn-cancel">إلغاء</a>
+    </div>
+  </form>
+</div>
+
+<style>
+.ta-field {
+  width:100%;border:1px solid var(--border);border-radius:6px;
+  padding:.55rem .75rem;font-family:inherit;font-size:.95rem;resize:vertical;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,41 @@
+{#
+  ما يراه مستعمل عادي إن فتح المنظومة قبل تنصيبها.
+
+  التّنصيب من مشمولات المشرف العام وحده: هو من يعرف صيغة اسم المركز في
+  الترويسة ومن يمضي المراسلات وأين بلغ السّجلّ الورقي.
+#}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" translate="no">
+<head>
+  <meta charset="UTF-8">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>المنظومة في انتظار التّنصيب</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <style>
+    body { background: var(--bg); }
+    .att-wrap { max-width: 560px; margin: 0 auto; padding: 4rem 1.2rem; text-align: center; }
+    .att-wrap h1 { font-size: 1.3rem; color: var(--primary-txt, var(--primary)); margin-bottom: .8rem; }
+    .att-wrap p { color: var(--text); line-height: 2; margin-bottom: .6rem; }
+    .att-wrap .att-note { color: var(--text-light); font-size: .9rem; }
+    .att-actions { margin-top: 1.6rem; }
+  </style>
+</head>
+<body>
+  <div class="att-wrap">
+    <div class="card">
+      <h1>المنظومة لم تُنصَّب بعد</h1>
+      <p>
+        قبل استعمال المنظومة يجب أن تتعرّف على مركزكم: اسمه، والمسؤول الممضي،
+        والمدير الجهوي، وأعداد انطلاق المراسلات.
+      </p>
+      <p class="att-note">
+        هذه العمليّة من مشمولات المشرف العام. يرجى إعلامه لإتمامها.
+      </p>
+      <div class="att-actions">
+        <a class="btn btn-cancel" href="{{ url_for('logout') }}">الخروج</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

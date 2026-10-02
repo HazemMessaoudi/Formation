@@ -1,0 +1,107 @@
+{#
+  ملخّص أجوبة التّنصيب قبل المصادقة النّهائيّة.
+
+  المصادقة هنا هي ما يضبط installation_faite='1'، وهو ما يفتح بقيّة
+  المنظومة. قبلها لا شيء نهائي: كلّ خطوة قابلة للرّجوع والتّعديل.
+#}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" translate="no">
+<head>
+  <meta charset="UTF-8">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تنصيب المنظومة — مراجعة الأجوبة</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <style>
+    body { background: var(--bg); }
+    .inst-wrap { max-width: 760px; margin: 0 auto; padding: 2rem 1.2rem 3rem; }
+    .inst-entete { text-align: center; margin-bottom: 1.6rem; }
+    .inst-entete h1 { font-size: 1.35rem; color: var(--primary-txt, var(--primary)); margin-bottom: .3rem; }
+    .inst-entete p { color: var(--text-light); font-size: .92rem; }
+    .rec-bloc { border-bottom: 1px solid var(--border); padding: .85rem 0; }
+    .rec-bloc:last-child { border-bottom: none; }
+    .rec-titre { display: flex; align-items: center; gap: .5rem;
+                 font-size: .86rem; color: var(--text-light); margin-bottom: .35rem; }
+    .rec-titre a { color: var(--primary-l); text-decoration: none; font-size: .82rem; }
+    .rec-titre a:hover { text-decoration: underline; }
+    .rec-ligne { display: flex; gap: .6rem; flex-wrap: wrap;
+                 padding: .15rem 0; line-height: 1.8; }
+    .rec-label { color: var(--text-light); min-width: 13rem; font-size: .9rem; }
+    .rec-valeur { font-weight: bold; color: var(--text); }
+    .rec-vide { color: var(--text-light); font-style: italic; font-weight: normal; }
+    .rec-note { font-size: .86rem; color: var(--text-light); line-height: 1.8;
+                background: #f6f8fc; border-right: 3px solid var(--primary-l);
+                padding: .7rem .9rem; border-radius: 6px; margin-top: .6rem; }
+    .inst-pied { display: flex; justify-content: space-between; align-items: center;
+                 gap: 1rem; margin-top: 1.6rem; }
+    .inst-retour { color: var(--text-light); text-decoration: none; font-size: .9rem; }
+    .inst-retour:hover { color: var(--primary-txt, var(--primary)); }
+  </style>
+</head>
+<body>
+  <div class="inst-wrap">
+
+    <div class="inst-entete">
+      <h1>مراجعة الأجوبة</h1>
+      <p>تأكّدوا من صحّة كلّ سطر: هذه المعطيات تظهر في كلّ مراسلة تصدرها المنظومة.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for categorie, message in messages %}
+        <div class="alert alert-{{ 'error' if categorie == 'error' else 'success' }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+      <div class="card-title">هويّة المركز</div>
+      {% for numero, titre, lignes in sections %}
+        <div class="rec-bloc">
+          <div class="rec-titre">
+            <span>{{ numero }}. {{ titre }}</span>
+            <a href="{{ url_for('installation_etape', numero=numero) }}">تعديل</a>
+          </div>
+          {% for label, valeur in lignes %}
+            <div class="rec-ligne">
+              <span class="rec-label">{{ label }}</span>
+              {% if valeur %}
+                <span class="rec-valeur">{{ valeur }}</span>
+              {% else %}
+                <span class="rec-valeur rec-vide">(لم يُملأ)</span>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">أرقام انطلاق المراسلات</div>
+      <div class="rec-ligne">
+        <span class="rec-label">أوّل عدد للمراسلات الدّاخليّة</span>
+        <span class="rec-valeur">{{ depart_interne }}</span>
+      </div>
+      <div class="rec-ligne">
+        <span class="rec-label">أوّل عدد للمراسلات الخارجيّة</span>
+        <span class="rec-valeur">{{ depart_externe }}</span>
+      </div>
+      <div class="rec-titre" style="margin-top:.4rem;">
+        <a href="{{ url_for('installation_etape', numero=nb_etapes) }}">تعديل</a>
+      </div>
+      <div class="rec-note">
+        هذان العددان هما أوّل ما ستُسنده المنظومة في كلّ سلسلة. العدد المُسند
+        لا يُسترجع إلّا بفسخ المراسلة، فتثبّتوا منهما قبل المصادقة.
+      </div>
+    </div>
+
+    <form method="post" action="{{ url_for('installation_resume') }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <div class="inst-pied">
+        <a class="inst-retour"
+           href="{{ url_for('installation_etape', numero=nb_etapes) }}">↷ الخطوة السّابقة</a>
+        <button type="submit" class="btn btn-generate">المصادقة وإتمام التّنصيب</button>
+      </div>
+    </form>
+
+  </div>
+</body>
+</html>

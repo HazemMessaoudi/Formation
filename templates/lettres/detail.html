@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% block title %}برنامج التكوين – {{ lettre.ref_complet or '' }}{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+  <h1>📋 برنامج التكوين</h1>
+  <a href="{{ url_for('liste_programmes') }}" class="btn btn-cancel">← القائمة</a>
+</div>
+
+<!-- ─── Informations générales du programme ──────────────────────────────── -->
+<div class="card">
+  <div class="card-title">معطيات البرنامج</div>
+  <div class="fiche-grid">
+    <div class="fiche-row">
+      <span class="fiche-lbl">المرجع</span>
+      <span class="fiche-val" dir="ltr"><strong>{{ lettre.ref_complet or '(لم يُعيَّن بعد)' }}</strong></span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">النوع</span>
+      <span class="fiche-val">{{ 'مراسلة داخلية' if lettre.type=='interne' else 'مراسلة خارجية' }}</span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">الشهر / السنة</span>
+      <span class="fiche-val">{{ lettre.mois }} {{ lettre.annee }}</span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">المسؤول</span>
+      <span class="fiche-val">{{ lettre.titre_responsable }} {{ lettre.nom_responsable }}</span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">عدد الدورات</span>
+      <span class="fiche-val"><strong>{{ formations|length }}</strong></span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">تاريخ الإنشاء</span>
+      <span class="fiche-val" dir="ltr">{{ lettre.date_creation[:10] if lettre.date_creation else '—' }}</span>
+    </div>
+  </div>
+
+  {% if lettre.ref_complet %}
+  <div style="display:flex;gap:.7rem;flex-wrap:wrap;margin-top:1.2rem;padding-top:1rem;border-top:1px solid var(--border);">
+    <a href="{{ url_for('generer_lettre', lettre_id=lettre.id) }}" target="_blank"
+       class="btn btn-generate">📄 المراسلة الرئيسية (PDF)</a>
+    <button type="button" class="btn" style="background:var(--primary-l);color:#fff;"
+            onclick="ouvrirDirecteur()">📨 مراسلة المدير الجهوي (PDF)</button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ─── المصادقة النهائيّة على البرنامج ───────────────────────────────────── -->
+{% if lettre.ref_complet and formations %}
+<div class="card" id="carteSceau" style="margin-top:1rem;
+     border-right:4px solid {{ '#16a34a' if lettre.scelle_at else '#f59e0b' }};
+     background:{{ '#f0fdf4' if lettre.scelle_at else '#fffbeb' }};">
+  {% if lettre.scelle_at %}
+  <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;color:#166534;">
+    <span style="font-size:1.3rem;">🔒</span>
+    <strong>برنامج مُصادَق عليه نهائيّا</strong>
+    <span dir="ltr" style="color:var(--text-muted);font-size:.9rem;">{{ lettre.scelle_at[:16] }}</span>
+  </div>
+  <p style="margin:.5rem 0 0;font-size:.86rem;color:#166534;line-height:1.7;">
+    جرت المراجعة النهائيّة لسلامة كلّ المعطيات وترقيم المراسلات، وخُتم البرنامج.
+  </p>
+  {% else %}
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;">
+    <div style="color:#92400e;">
+      <strong>المصادقة النهائيّة على البرنامج</strong>
+      <p style="margin:.4rem 0 0;font-size:.86rem;line-height:1.7;">
+        بعد استكمال كلّ الدورات وتسجيلها، أجرِ مراجعة نهائيّة تتحقّق من سلامة
+        كلّ المعطيات وترقيم المراسلات، ثمّ اختم البرنامج.
+      </p>
+    </div>
+    <button type="button" class="btn" style="background:#16a34a;color:#fff;white-space:nowrap;"
+            onclick="ouvrirMoussadaqa()">🔒 مراجعة ومصادقة</button>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ─── Les dorrat : une carte dépliable par formation ────────────────────── -->
+<div class="card-title" style="margin:1.6rem 0 .8rem;">
+  الدورات التكوينية ({{ formations|length }}) — اضغط على عنوان الدورة لعرض كامل معطياتها
+</div>
+
+{% for f in formations %}
+<div class="card" style="margin-bottom:.9rem;padding:0;overflow:hidden;">
+
+  <!-- Bandeau cliquable -->
+  <div onclick="basculerDorra({{ f.id }})"
+       style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;cursor:pointer;
+              padding:1rem 1.2rem;background:var(--bg);">
+    <span style="font-weight:700;background:var(--primary);color:#fff;border-radius:6px;
+                 padding:.2rem .6rem;font-size:.85rem;">{{ "%02d"|format(f.ordre) }}</span>
+    <span style="font-weight:700;font-size:1.05rem;flex:1;min-width:160px;">{{ f.titre or '—' }}</span>
+    <span style="color:var(--text-muted);font-size:.88rem;" dir="ltr">{{ f|dates_dorra }}</span>
+    <span style="color:var(--text-muted);font-size:.88rem;">{{ f.lieu_formation or '' }}</span>
+    <span class="badge badge-blue">{{ f.nb_participants }} مشارك</span>
+    <span id="fleche_{{ f.id }}" style="font-size:1.1rem;color:var(--primary-txt, var(--primary));">▼</span>
+  </div>
+
+  <!-- Contenu dépliable -->
+  <div id="dorra_{{ f.id }}" style="display:none;padding:1.2rem;border-top:1px solid var(--border);">
+
+    <div class="fiche-grid" style="margin-bottom:1.2rem;">
+      <div class="fiche-row">
+        <span class="fiche-lbl">عنوان الدورة</span>
+        <span class="fiche-val"><strong>{{ f.titre or '—' }}</strong></span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">المكوّن</span>
+        <span class="fiche-val">{{ f.grade or '' }} {{ f.nom_formateur or '—' }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">مكان عمل المكوّن</span>
+        <span class="fiche-val">{{ f.lieu_travail or '—' }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">تاريخ التكوين</span>
+        <span class="fiche-val" dir="ltr">{{ f|dates_dorra }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">الفترة</span>
+        <span class="fiche-val">{{ f.periode or '—' }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">مكان التكوين</span>
+        <span class="fiche-val">{{ f.lieu_formation or '—' }}</span>
+      </div>
+    </div>
+
+    <!-- Participants -->
+    <div style="font-weight:700;margin-bottom:.5rem;">
+      👥 المشاركون ({{ f.nb_participants }})
+    </div>
+    {% if f.participants %}
+    <div style="overflow:auto;margin-bottom:1.2rem;">
+      <table class="list-table" style="font-size:.88rem;">
+        <thead>
+          <tr>
+            <th>ع/ر</th><th>الاسم واللقب</th><th>الرتبة</th>
+            <th>المعرف الوحيد</th><th>مكان العمل</th>
+            <th>الجنس</th><th>الفئة العمريّة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in f.participants %}
+          <tr>
+            <td class="num-cell">{{ "%02d"|format(loop.index) }}</td>
+            <td><strong>{{ p.nom_prenom or '—' }}</strong></td>
+            <td>{{ p.grade or '—' }}</td>
+            <td dir="ltr">{{ p.identifiant_unique or '—' }}</td>
+            <td>{{ p.lieu_travail or '—' }}</td>
+            <td>{{ p.sexe or '—' }}</td>
+            <td>{{ p.fiaa_omria or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color:var(--text-muted);margin-bottom:1.2rem;">لم يتمّ إدخال المشاركين بعد.</p>
+    {% endif %}
+
+    <!-- Impression de toutes les pièces de la dorra -->
+    <div style="font-weight:700;margin-bottom:.6rem;padding-top:.8rem;border-top:1px solid var(--border);">
+      🖨️ وثائق الدورة
+    </div>
+    <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
+      {% if f.nb_participants %}
+      <a href="{{ url_for('generer_participants_pdf', lettre_id=lettre.id, formation_id=f.id) }}"
+         target="_blank" class="btn" style="background:#1e3a8a;color:#fff;">📋 قائمة المشاركين</a>
+      {% else %}
+      <span class="btn" style="opacity:.45;cursor:not-allowed;" title="لا يوجد مشاركون">📋 قائمة المشاركين</span>
+      {% endif %}
+
+      {% if f.nb_participants %}
+      <a href="{{ url_for('generer_hodour_pdf', lettre_id=lettre.id, formation_id=f.id) }}"
+         target="_blank" class="btn" style="background:#0f766e;color:#fff;"
+         title="وثيقة مستقلّة لا تُحتسب ضمن ترقيم الملفّ">🖊️ بطاقة حضور</a>
+      {% else %}
+      <span class="btn" style="opacity:.45;cursor:not-allowed;" title="لا يوجد مشاركون">🖊️ بطاقة حضور</span>
+      {% endif %}
+
+      {% if f.bataqa_ok %}
+      <a href="{{ url_for('generer_bataqa_pdf', lettre_id=lettre.id, formation_id=f.id) }}"
+         target="_blank" class="btn" style="background:#7c3aed;color:#fff;">🗂️ البطاقة البيداغوجية</a>
+      {% else %}
+      <span class="btn" style="opacity:.45;cursor:not-allowed;" title="لم تُؤكَّد بعد">🗂️ البطاقة البيداغوجية</span>
+      {% endif %}
+
+      {% if f.programme_ok %}
+      <a href="{{ url_for('generer_programme_pdf', lettre_id=lettre.id, formation_id=f.id) }}"
+         target="_blank" class="btn" style="background:#0891b2;color:#fff;">📆 برنامج الدورة</a>
+      {% else %}
+      <span class="btn" style="opacity:.45;cursor:not-allowed;" title="لم يُؤكَّد بعد">📆 برنامج الدورة</span>
+      {% endif %}
+
+      {% if f.memo_ok %}
+      <a href="{{ url_for('generer_memo_pdf', lettre_id=lettre.id, formation_id=f.id) }}"
+         target="_blank" class="btn" style="background:#059669;color:#fff;">📝 مذكّرة التكوين</a>
+      {% else %}
+      <span class="btn" style="opacity:.45;cursor:not-allowed;" title="لم تُؤكَّد بعد">📝 مذكّرة التكوين</span>
+      {% endif %}
+
+      {# v1.7 — شهادات المشاركة (présents de ورقة الحضور) #}
+      {% if f.nb_presents %}
+      <a href="{{ url_for('generer_shahadat_pdf', lettre_id=lettre.id, formation_id=f.id) }}"
+         target="_blank" class="btn" style="background:#b08d3c;color:#fff;"
+         title="شهادة لكلّ مشارك حاضر حسب ورقة الحضور">🎓 طباعة شهائد المشاركين ({{ f.nb_presents }})</a>
+      {% else %}
+      <span class="btn" style="opacity:.45;cursor:not-allowed;" title="تُطبع بعد تسجيل ورقة الحضور">🎓 طباعة شهائد المشاركين</span>
+      {% endif %}
+
+      {# v1.7 — les cinq pièces en Word, dans une seule archive #}
+      {% if f.nb_participants or f.bataqa_ok or f.programme_ok or f.memo_ok %}
+      <a href="{{ url_for('telecharger_dossier_dorra', lettre_id=lettre.id, formation_id=f.id) }}"
+         class="btn" style="background:#374151;color:#fff;" data-sans-apercu
+         title="المذكّرة + برنامج الدورة + القائمة الإسمية + البطاقة البيداغوجية + بطاقة الحضور، بصيغة Word قابلة للتعديل">📦 تحميل ملفّ الدورة (Word)</a>
+      {% endif %}
+    </div>
+    <div style="font-size:.82rem;color:var(--text-light);margin-top:.5rem;">
+      الوثائق الباهتة لم تُؤكَّد بعد — أكملها من
+      <a href="{{ url_for('formations_en_cours') }}">إستكمال برنامج تكوين</a>.
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="empty-msg">لا توجد دورات في هذا البرنامج.</div>
+{% endfor %}
+
+<!-- Modal : destination de la lettre au directeur régional -->
+<div id="modal-dir" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">مراسلات المديرين الجهويّين</div>
+
+    {% if dr_lettres %}
+    <!-- Ce qui est déjà parti, et sous quel عدد. Une مراسلة tirée ne se
+         renumérote pas : la revoir ici, c'est la réimprimer à l'identique. -->
+    <div style="margin-bottom:.9rem;">
+      <label style="font-size:.88rem;color:var(--text-muted);">ما رُسِّم إلى حدّ الآن</label>
+      <table class="list-table" style="font-size:.85rem;margin-top:.35rem;">
+        <tbody>
+          {% for d in dr_lettres %}
+          <tr id="dr_row_{{ d.id }}">
+            <td>{{ d.destination or '—' }}</td>
+            <td dir="ltr" style="white-space:nowrap;"><strong>{{ d.ref_complet }}</strong></td>
+            <td style="white-space:nowrap;">{{ 'داخلية' if d.type=='interne' else 'خارجية' }}</td>
+            <td style="white-space:nowrap;">
+              <a href="{{ url_for('generer_lettre_directeur_regional', lettre_id=lettre.id, destination=d.destination, type_mr=d.type) }}"
+                 target="_blank" title="إعادة الطبع بنفس العدد">🖨</a>
+              <button type="button"
+                      style="background:none;border:none;cursor:pointer;font-size:1rem;padding:0 .3rem;"
+                      title="فسخ هذه المراسلة وإرجاع عددها"
+                      onclick="fsakhDR({{ d.id }}, '{{ (d.destination or '')|replace("'", " ") }}')">🗑</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <label style="font-size:.88rem;color:var(--text-muted);">
+      {% if dr_lettres %}جهة أخرى تُراسَل{% else %}الجهة الموجَّه إليها{% endif %}
+    </label>
+    <input type="text" id="inp-dest" class="modal-input" list="dl_dest_dr"
+           autocomplete="off" value="{{ '' if dr_lettres else destination_dr }}">
+    <datalist id="dl_dest_dr">
+      {% for j in jihat %}<option value="{{ j }}"></option>
+      {% endfor %}
+    </datalist>
+
+    <label style="font-size:.88rem;color:var(--text-muted);margin-top:.6rem;display:block;">نوع المراسلة</label>
+    <select id="inp-type-mr" class="modal-input">
+      <option value="interne">مراسلة داخلية</option>
+      <option value="externe" selected>مراسلة خارجية</option>
+    </select>
+
+    <p style="margin:.6rem 0 0;font-size:.84rem;color:var(--text-muted);line-height:1.7;">
+      لكلّ مدير جهويّ مراسلته، ولكلّ مراسلة <strong>عددها المستقلّ</strong> من
+      سلسلة النّوع المختار — لا عدد مراسلة البرنامج. ثلاث جهات تعني ثلاثة أعداد
+      وثلاثة أسطر في السّجلّ. العدد يُسحب مرّة واحدة: إعادة طبع مراسلة جهة
+      سبقت لا تستهلك عددا جديدا.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="document.getElementById('modal-dir').style.display='none'">إلغاء</button>
+      <button class="btn btn-save" onclick="genererDirecteur()">📄 إنشاء</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function basculerDorra(fid) {
+  const box = document.getElementById('dorra_' + fid);
+  const fl  = document.getElementById('fleche_' + fid);
+  const ouvert = box.style.display !== 'none';
+  box.style.display = ouvert ? 'none' : '';
+  fl.textContent    = ouvert ? '▼' : '▲';
+}
+
+function ouvrirDirecteur() {
+  document.getElementById('modal-dir').style.display = 'flex';
+}
+
+function genererDirecteur() {
+  const dest = document.getElementById('inp-dest').value.trim();
+  if (!dest) { showAlertModal('يرجى كتابة الجهة الموجَّه إليها'); return; }
+  const t = document.getElementById('inp-type-mr').value;
+  window.open(`/lettre/{{ lettre.id }}/generer-directeur-regional`
+              + `?destination=${encodeURIComponent(dest)}&type_mr=${encodeURIComponent(t)}`, '_blank');
+  document.getElementById('modal-dir').style.display = 'none';
+  // Un عدد vient d'être tiré : la page doit le montrer, sans quoi l'agent
+  // ignore ce qui est parti et redemande la même جهة.
+  setTimeout(() => window.location.reload(), 1200);
+}
+
+// فسخ مراسلة مدير جهوي : son عدد revient au pool. Corrige le défaut où retirer
+// une مراسلة à l'écran laissait son عدد inscrit au سجلّ.
+function fsakhDR(drId, dest) {
+  showConfirmModal(
+    `فسخ مراسلة المدير الجهوي الموجَّهة إلى «${dest || '—'}»؟\n\n`
+    + 'يعود عددها إلى الرصيد فيأخذه أوّل طالب بعده. '
+    + 'لا يمكن الفسخ بعد تسجيل كامل البرنامج نهائيّا.',
+    async () => {
+      try {
+        const res = await fetch(`/lettre/{{ lettre.id }}/dr/${drId}/annuler`,
+                                { method: 'POST' });
+        const d = await res.json();
+        if (d.succes) { window.location.reload(); }
+        else { showAlertModal(d.erreur || 'تعذّر الفسخ.'); }
+      } catch (e) { showAlertModal('خطأ: ' + e.message); }
+    }
+  );
+}
+
+// المصادقة النهائيّة : مراجعة سلامة المعطيات والترقيم ثمّ الختم.
+async function ouvrirMoussadaqa() {
+  let r;
+  try {
+    r = await (await fetch(`/lettre/{{ lettre.id }}/revue`)).json();
+  } catch (e) { showAlertModal('تعذّر تحميل المراجعة: ' + e.message); return; }
+
+  const lignes = [];
+  lignes.push(`📋 المراجعة النهائيّة للبرنامج ${r.ref || ''}`);
+  lignes.push('');
+  lignes.push(`الدورات: ${r.dorrat.length} — المسجَّلة نهائيّا: `
+              + `${r.dorrat.filter(d => d.finalise).length}`);
+  if (r.dr_lettres.length)
+    lignes.push(`مراسلات المديرين الجهويّين: ${r.dr_lettres.length}`);
+  lignes.push(`الأعداد المسحوبة من السّجلّ: ${r.registre.length}`);
+  lignes.push('');
+
+  if (!r.coherent) {
+    lignes.push('⚠️ لا يمكن المصادقة — يجب إصلاح ما يلي أوّلا:');
+    r.problemes.forEach(p => lignes.push('— ' + p));
+    showAlertModal(lignes.join('\n'));
+    return;
+  }
+
+  lignes.push('✅ كلّ المعطيات سليمة وكلّ عدد في مقابله وثيقة قائمة.');
+  lignes.push('');
+  lignes.push('بعد المصادقة يُختم البرنامج نهائيّا. هل تريد المتابعة؟');
+  showConfirmModal(lignes.join('\n'), async () => {
+    try {
+      const res = await fetch(`/lettre/{{ lettre.id }}/sceller`, { method: 'POST' });
+      const d = await res.json();
+      if (d.succes) { window.location.reload(); }
+      else {
+        showAlertModal('تعذّرت المصادقة:\n— '
+                       + (d.problemes || ['خطأ']).join('\n— '));
+      }
+    } catch (e) { showAlertModal('خطأ: ' + e.message); }
+  });
+}
+
+// La première dorra est dépliée d'office
+document.addEventListener('DOMContentLoaded', () => {
+  const first = document.querySelector('[id^="dorra_"]');
+  if (first) basculerDorra(first.id.replace('dorra_', ''));
+});
+</script>
+{% endblock %}

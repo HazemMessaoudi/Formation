@@ -1,0 +1,57 @@
+{# V3 — Phase 5 : corps du تقرير بياني (page « التّقارير » et export HTML).
+   Les graphiques sont dessinés par static/js/rapports_graphes.js à partir
+   du JSON #rgDonnees. #}
+<div class="rg-racine" id="rgRacine">
+  <div class="rg-kpis">
+    {% for k in d.kpis %}
+      <div class="rg-kpi">
+        <div class="rg-kpi__lib">{{ k.libelle }}</div>
+        <div class="rg-kpi__val">{{ k.texte }}</div>
+        <div class="rg-kpi__ev">
+          {% if k.evolution is not none %}
+            <b>{{ '▲' if k.evolution > 0 else ('▼' if k.evolution < 0 else '=') }} {{ k.evolution | abs }}%</b>
+            مقارنة بـ {{ k.reference }} ({{ k.precedent_texte }})
+          {% elif k.cle == 'taux_realisation' %}{{ k.reference }} دورة
+          {% else %}—{% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="rg-carte rg-analyses">
+    <h2>🔎 أهمّ الاستنتاجات</h2>
+    <ul>{% for a in d.analyses %}<li>{{ a }}</li>{% endfor %}</ul>
+  </div>
+
+  {% for s in d.sections %}
+    <section class="rg-section" id="rg-{{ s.id }}">
+      <h2>{{ s.titre }}</h2>
+      {% if s.id == 'comparaison' %}<p class="rg-note">العمود الأزرق: الفترة المختارة — الأعمدة الرّماديّة: نفس الفترة من السّنوات السّابقة.</p>{% endif %}
+      <div class="rg-grille">
+        {% for g in s.graphes %}<div class="rg-carte" data-graphe="{{ g.id }}"></div>{% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+
+  <section class="rg-section" id="rg-dorrat">
+    <h2>قائمة الأنشطة المحتسبة ({{ d.dorrat | length }})</h2>
+    <div class="rg-carte rg-dorrat-wrap">
+      <table class="rg-dorrat table-triable">
+        <thead><tr><th>#</th><th>الدّورة</th><th>التّاريخ</th><th>المكوّن</th><th>التّصنيف</th>
+          <th>الأيّام</th><th>المشاركون</th><th>الغيابات</th><th>نسبة الحضور</th></tr></thead>
+        <tbody>
+          {% for x in d.dorrat %}
+            <tr><td class="num">{{ loop.index }}</td><td>{{ x.titre }}</td>
+              <td class="num">{{ x.date_formation[8:10] }}/{{ x.date_formation[5:7] }}/{{ x.date_formation[:4] }}</td>
+              <td>{{ (x.grade ~ ' ' ~ x.formateur) | trim }}</td><td>{{ x.categorie }}</td>
+              <td class="num">{{ x.jours }}</td><td class="num">{{ x.participants }}</td>
+              <td class="num">{{ x.absents }}</td><td class="num">{{ x.taux_presence }}%</td></tr>
+          {% else %}
+            <tr><td colspan="9" class="rg-vide">لا توجد أنشطة محتسبة في هذه الفترة</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+<script type="application/json" id="rgDonnees">{{ d | tojson }}</script>

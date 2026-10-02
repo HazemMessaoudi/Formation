@@ -1,0 +1,44 @@
+{% extends "base_parametres.html" %}
+{% block title %}الإشعارات{% endblock %}
+
+{# V3.1 — إشعارات المشرف العام : les تحيينات des autres utilisateurs depuis
+   le dernier « تمّت القراءة ». Source : سجلّ التّدقيق (core/notifications.py). #}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:.4rem;">
+  <h1>🔔 الإشعارات</h1>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+    {% if r.nb %}
+    <form method="post" action="{{ url_for('notifications_lues') }}" style="margin:0;">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <button type="submit" class="btn btn-save">✔ تمّت القراءة</button>
+    </form>
+    {% endif %}
+    <a href="{{ url_for('page_journal') }}" class="btn btn-cancel">🗂️ سجلّ التدقيق الكامل</a>
+  </div>
+</div>
+<p style="color:var(--text-muted);margin-bottom:1rem;">
+  التحيينات التي قام بها المستعملون الآخرون منذ آخر اطّلاع لك (دون الطباعة والتصدير والدخول والخروج).
+</p>
+
+{% if r.liste %}
+<div class="card" style="padding:0;overflow:hidden;">
+  <table class="list-table">
+    <thead><tr><th>التاريخ</th><th>المستعمل</th><th>العمليّة</th><th>العنصر</th></tr></thead>
+    <tbody>
+      {% for e in r.liste %}
+      <tr>
+        <td dir="ltr" style="white-space:nowrap;">{{ e.horodatage }}</td>
+        <td><strong>{{ e.utilisateur }}</strong></td>
+        <td>{{ e.action }}</td>
+        <td style="color:var(--text-muted);font-size:.86rem;">{{ e.cible or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if r.nb > r.liste|length %}<p style="color:var(--text-muted);margin-top:.6rem;">تُعرض أحدث {{ r.liste|length }} من {{ r.nb }}.</p>{% endif %}
+{% else %}
+<div class="card" style="text-align:center;color:var(--text-muted);padding:2rem;">✔ لا توجد تحيينات جديدة.</div>
+{% endif %}
+{% endblock %}

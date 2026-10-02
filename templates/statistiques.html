@@ -1,0 +1,917 @@
+{% extends "base_statistiques.html" %}
+{% block title %}إحصائيات – نظام إدارة التكوين{% endblock %}
+
+{# ═══════════════════════════════════════════════════════════════════════════
+   إحصائيات المركز (v1.4)
+
+   Deux étages, et la distinction est volontaire :
+
+     1. « إحصائيات المركز » — un عرض تلقائي qui tourne seul toutes les 3 s :
+        courbes, histogrammes et diagrammes qui racontent l'activité du مركز.
+        C'est ce qu'on regarde sans rien demander.
+     2. « التفاصيل » — le détail complet, rangé par onglets ; c'est là qu'on
+        va chercher un chiffre précis.
+
+   Les رسوم sont dessinés en SVG à la main : le poste peut être hors ligne,
+   aucune bibliothèque n'est chargée.
+
+   Couleurs : palette catégorielle à ordre FIXE (jamais recyclé), validée pour
+   la vision des couleurs sur les deux surfaces (claire et thème ليلي). Comme
+   trois teintes passent sous 3:1 sur fond clair, chaque part porte son
+   étiquette et un « عرض الجدول » double le رسم en texte.
+   ═══════════════════════════════════════════════════════════════════════════ #}
+
+{# Le قسم إحصائيات a SES titres à lui : le passage vers un autre قسم أساسي se
+   fait par le زر كبير du retour, jamais par un lien glissé dans ce menu. #}
+{# Menu de la section : voir base_statistiques.html (v1.5). #}
+
+{# ── Un bloc « barres horizontales » : une série, une teinte, valeur en bout ─ #}
+{% macro barres(titre, icone, donnees, unite='') %}
+  {% set total = (donnees | map(attribute=1) | list | max) if donnees else 0 %}
+  <div class="card bloc-stat">
+    <div class="card-title">{{ icone }} {{ titre }}</div>
+    {% if donnees and total > 0 %}
+    <div class="barres">
+      {% for nom, valeur in donnees %}
+      <div class="barre-ligne" title="{{ nom }} — {{ valeur }} {{ unite }}">
+        <div class="barre-nom">{{ nom }}</div>
+        <div class="barre-piste">
+          <div class="barre-fill" data-largeur="{{ ((valeur / total) * 100) | round(1) }}"></div>
+        </div>
+        <div class="barre-val">{{ valeur }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bloc-vide">لا توجد معطيات بعد.</div>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% block content %}
+<div class="page-header stats-entete">
+  <h1>📈 إحصائيات مركز التكوين</h1>
+  {# v1.6.1 — impression A4 : toutes les rubriques, sans le عرض تلقائي. #}
+  <button type="button" class="btn btn-cancel no-print" id="btnImprimerStats"
+          onclick="imprimerStats()" title="طباعة كلّ الإحصائيات على ورق A4">🖨 طباعة (A4)</button>
+</div>
+
+{# V3 — التّقارير : accès au التّقرير الكتابي (modèle officiel), PDF et Word. #}
+<a href="{{ url_for('rapport_ecrit') }}" class="card no-print stats-lien-rapport"
+   style="display:flex;align-items:center;gap:.9rem;padding:.8rem 1.1rem;margin-bottom:1rem;text-decoration:none;color:inherit;border-inline-start:4px solid var(--accent);">
+  <span style="font-size:1.6rem" aria-hidden="true">📝</span>
+  <span style="flex:1;line-height:1.6;"><b style="color:var(--primary)">التّقرير الكتابي لنشاط المركز</b><br>
+    <small style="color:var(--text-light)">ثلاثي، نصف سنوي، سنوي أو لفترة محدّدة — بنفس نموذج التّقرير الرّسمي، مع مراجعة كلّ النّصوص قبل طباعته PDF أو Word.</small></span>
+  <span class="btn" style="pointer-events:none;background:var(--primary);color:#fff;">فتح ←</span>
+</a>
+
+{# ── المشاركون حسب الصنف : mêmes paires pour le رسم et pour le détail ────── #}
+{% set d_classes = [] %}
+{% for c in classes %}{% set _ = d_classes.append(['الصنف ' ~ c, s.par_classe.get(c, 0)]) %}{% endfor %}
+{% if s.non_classes %}{% set _ = d_classes.append(['غير مصنّف', s.non_classes]) %}{% endif %}
+
+{# ═══ 1. العرض التلقائي ═══════════════════════════════════════════════════ #}
+<section class="viz" id="carrousel" aria-label="عرض تلقائي لرسوم نشاط المركز">
+  <div class="viz-head">
+    <div class="viz-head__txt">
+      <span class="viz-kind" id="vizKind">رسم بياني</span>
+      <h2 class="viz-titre" id="vizTitre">…</h2>
+      <p class="viz-sous" id="vizSous"></p>
+    </div>
+    <div class="viz-outils">
+      <button type="button" class="viz-btn" id="vizTable"
+              aria-pressed="false" title="عرض المعطيات في جدول">📋 الجدول</button>
+      <button type="button" class="viz-btn" id="vizPause"
+              aria-label="إيقاف العرض التلقائي" title="إيقاف / استئناف">⏸</button>
+      <button type="button" class="viz-btn" id="vizPrev"
+              aria-label="الرسم السابق" title="السابق">‹</button>
+      <button type="button" class="viz-btn" id="vizNext"
+              aria-label="الرسم الموالي" title="الموالي">›</button>
+    </div>
+  </div>
+
+  <div class="viz-scene" id="vizScene" aria-live="polite"></div>
+  <div class="viz-tableau" id="vizTableau" hidden></div>
+
+  <div class="viz-pied">
+    <div class="viz-points" id="vizPoints" role="tablist" aria-label="اختيار الرسم"></div>
+  </div>
+
+  <div class="viz-tip" id="vizTip" hidden></div>
+</section>
+
+{# ═══ 2. التفاصيل ═════════════════════════════════════════════════════════ #}
+<section class="detail" aria-label="تفاصيل الإحصائيات">
+  <div class="detail-onglets" role="tablist" aria-label="أقسام التفاصيل">
+    <button type="button" class="dtab actif" role="tab" aria-selected="true"  data-cible="d-kpi">🔢 المؤشّرات العامّة</button>
+    <button type="button" class="dtab"       role="tab" aria-selected="false" data-cible="d-part">👥 المشاركون</button>
+    <button type="button" class="dtab"       role="tab" aria-selected="false" data-cible="d-dor">🎓 الدورات</button>
+    <button type="button" class="dtab"       role="tab" aria-selected="false" data-cible="d-temps">🗓 التوزيع الزمني</button>
+    <button type="button" class="dtab"       role="tab" aria-selected="false" data-cible="d-mawad">📚 مواد التكوين</button>
+  </div>
+
+  {# ── المؤشّرات العامّة ──────────────────────────────────────────────────── #}
+  <div class="dpan" id="d-kpi" role="tabpanel">
+    <h2 class="print-only pan-titre">🔢 المؤشّرات العامّة</h2>
+    <div class="kpi-grid">
+      {% for ico, val, lbl, cls in [
+          ('📋', s.programmes,            'برامج تكوين',            'k-navy'),
+          ('✅', s.programmes_confirmes,  'برامج مصادق عليها',      'k-green'),
+          ('🎯', s.dorrat,                'دورات تكوينية',          'k-blue'),
+          ('🔒', s.dorrat_finalisees,     'دورات مسجَّلة نهائيًّا',   'k-gold'),
+          ('👥', s.participations,        'مشاركات',                'k-teal'),
+          ('🧍', s.participants_uniques,  'مشاركون متمايزون',       'k-purple'),
+          ('🎓', s.mkowin,                'الأسماء المسجَّلة',        'k-navy'),
+          ('📚', s.mawad,                 'مواد التكوين',           'k-blue'),
+          ('🏛', s.jihat,                 'الجهات المرجعية',        'k-teal'),
+          ('✉️', s.lettres_libres,        'مراسلات حرّة',            'k-gold'),
+      ] %}
+      <div class="kpi {{ cls }}">
+        <div class="kpi-ico">{{ ico }}</div>
+        <div class="kpi-val" data-cible="{{ val }}">0</div>
+        <div class="kpi-lbl">{{ lbl }}</div>
+      </div>
+      {% endfor %}
+
+      <div class="kpi k-purple">
+        <div class="kpi-ico">📊</div>
+        <div class="kpi-val kpi-decimal" data-cible="{{ s.moyenne_participants }}">0</div>
+        <div class="kpi-lbl">معدّل المشاركين في الدورة</div>
+      </div>
+    </div>
+    <p class="detail-note">
+      «مشاركات» تُحتسب مرّة عن كلّ حضور في دورة؛ «مشاركون متمايزون» تُحتسب مرّة واحدة عن كلّ شخص.
+    </p>
+  </div>
+
+  {# ── المشاركون ─────────────────────────────────────────────────────────── #}
+  <div class="dpan" id="d-part" role="tabpanel" hidden>
+    <h2 class="print-only pan-titre">👥 المشاركون</h2>
+    <div class="grille-blocs">
+      {{ barres('المشاركون حسب الصنف', '⚖️', d_classes, 'مشاركًا') }}
+      {{ barres('المشاركون حسب الرتبة', '🎖', s.par_grade, 'مشاركًا') }}
+      {# v1.7.1 : « المشاركون حسب الجهة المرجعية » retiré (demande de l'utilisateur) #}
+    </div>
+    <p class="detail-note">
+      الأصناف مستخرَجة من رتب المشاركين حسب جدول الأصناف المعتمد في قسم «الإعدادات».
+    </p>
+
+    {# v1.6.1 — الجنس / الفئة العمريّة : toujours affichés (plus de bouton). #}
+    <div class="grille-blocs" id="blocSexeFiaa" style="margin-top:1rem;">
+      {{ barres('المشاركون حسب الجنس', '👤', s.par_sexe_participants, 'مشاركًا') }}
+      {{ barres('المشاركون حسب الفئة العمريّة', '🎂', s.par_fiaa_participants, 'مشاركًا') }}
+    </div>
+    <p class="detail-note">
+      «غير محدّد» : الخانة لم تُعمَّر بعد. هذه المعطيات للإحصائيات فقط ولا تظهر في وثائق الدورة.
+    </p>
+  </div>
+
+  {# ── الدورات ───────────────────────────────────────────────────────────── #}
+  <div class="dpan" id="d-dor" role="tabpanel" hidden>
+    <h2 class="print-only pan-titre">🎓 الدورات</h2>
+    <div class="grille-blocs">
+      {{ barres('الدورات حسب المكوّن', '🎓', s.par_formateur, 'دورة') }}
+      {{ barres('الدورات حسب المادة', '📚', s.par_madda, 'دورة') }}
+      {{ barres('الدورات حسب مكان التكوين', '📍', s.par_lieu, 'دورة') }}
+    </div>
+  </div>
+
+  {# ── التوزيع الزمني ────────────────────────────────────────────────────── #}
+  <div class="dpan" id="d-temps" role="tabpanel" hidden>
+    <h2 class="print-only pan-titre">🗓 التوزيع الزمني</h2>
+    <div class="grille-blocs">
+      {{ barres('توزيع البرامج على الأشهر', '🗓', s.par_mois, 'برنامجًا') }}
+      {{ barres('الدورات حسب السنة', '📆', s.par_annee, 'دورة') }}
+    </div>
+  </div>
+
+  {# ── مواد التكوين ──────────────────────────────────────────────────────── #}
+  <div class="dpan" id="d-mawad" role="tabpanel" hidden>
+    <h2 class="print-only pan-titre">📚 مواد التكوين</h2>
+    <div class="grille-blocs">
+      {{ barres('مواد التكوين حسب النوع', '🏷', s.par_type_formation, 'مادة') }}
+    </div>
+  </div>
+</section>
+
+{# Les séries servies au dessinateur : mêmes chiffres que le détail ci-dessus. #}
+<script id="viz-data" type="application/json">{{ {
+  'mois':       s.par_mois,
+  'annee':      s.par_annee,
+  'classes':    d_classes,
+  'grades':     s.par_grade[:8],
+  'types':      s.par_type_formation,
+  'formateurs': s.par_formateur[:6]
+} | tojson }}</script>
+{% endblock %}
+
+
+{% block scripts %}
+<style>
+  /* ═══ المؤشّرات ═══════════════════════════════════════════════════════════ */
+  .kpi-grid {
+    display:grid; gap:.9rem;
+    grid-template-columns:repeat(auto-fill, minmax(168px, 1fr));
+  }
+  .kpi {
+    background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+    padding:1.1rem .9rem; text-align:center; box-shadow:var(--shadow);
+    border-top:4px solid var(--primary-l);
+    opacity:0; transform:translateY(14px);
+    transition:opacity .5s ease, transform .5s cubic-bezier(.2,.8,.3,1);
+  }
+  .kpi.vu { opacity:1; transform:none; }
+  .kpi-ico { font-size:1.6rem; line-height:1; }
+  .kpi-val { font-size:2rem; font-weight:700; color:var(--primary-txt, var(--primary)); margin:.25rem 0 .1rem;
+             font-variant-numeric:tabular-nums; }
+  .kpi-lbl { font-size:.86rem; color:var(--text-light); line-height:1.5; }
+
+  .k-navy   { border-top-color:var(--primary-d); }
+  .k-blue   { border-top-color:var(--primary-l); }
+  .k-green  { border-top-color:#1a7a3a; }
+  .k-gold   { border-top-color:var(--accent); }
+  .k-teal   { border-top-color:#2f9e7a; }
+  .k-purple { border-top-color:#6b5bbd; }
+
+  /* ═══ العرض التلقائي ══════════════════════════════════════════════════════ */
+  /* Palette catégorielle à ordre FIXE — une teinte par tranche, jamais
+     recyclée. Les valeurs du thème ليلي sont des pas choisis pour la surface
+     sombre, pas une inversion automatique. */
+  .viz {
+    --v1:#2a78d6; --v2:#eb6834; --v3:#1baf7a;
+    --v4:#eda100; --v5:#e87ba4; --v6:#008300;
+    --v-serie:#2a78d6;                      /* série unique : une seule teinte */
+    --v-grille:rgba(0,0,0,.10);
+    --v-axe:rgba(0,0,0,.20);
+    --v-fond:var(--card-bg);
+
+    position:relative;
+    background:var(--card-bg);
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    padding:1.05rem 1.2rem .85rem;
+    margin-bottom:1.6rem;
+  }
+  body[data-theme="5"] .viz {
+    --v1:#3987e5; --v2:#d95926; --v3:#199e70;
+    --v4:#c98500; --v5:#d55181; --v6:#008300;
+    --v-serie:#3987e5;
+    --v-grille:rgba(255,255,255,.13);
+    --v-axe:rgba(255,255,255,.26);
+  }
+
+  .viz-head {
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:1rem; flex-wrap:wrap; margin-bottom:.5rem;
+  }
+  .viz-kind {
+    display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.02em;
+    color:var(--primary-txt, var(--primary)); background:var(--glow-1);
+    padding:.12rem .55rem; border-radius:999px;
+  }
+  body[data-theme="5"] .viz-kind { color:var(--text); }
+  .viz-titre { font-size:1.08rem; color:var(--text); margin:.3rem 0 0; font-weight:700; }
+  .viz-sous  { font-size:.83rem; color:var(--text-light); margin:.18rem 0 0; line-height:1.6; }
+
+  .viz-outils { display:flex; gap:.35rem; flex-shrink:0; }
+  .viz-btn {
+    font-family:inherit; font-size:.9rem; line-height:1;
+    min-width:2rem; height:2rem; padding:0 .5rem;
+    display:inline-flex; align-items:center; justify-content:center;
+    background:var(--bg); color:var(--text-light);
+    border:1px solid var(--border); border-radius:7px; cursor:pointer;
+    transition:color .15s, border-color .15s, background .15s;
+  }
+  .viz-btn:hover { color:var(--primary-txt, var(--primary)); border-color:var(--primary-l); }
+  .viz-btn[aria-pressed="true"] {
+    background:var(--primary); border-color:var(--primary); color:#fff;
+  }
+
+  /* Hauteur fixe : les رسوم se succèdent sans faire sauter la page. */
+  .viz-scene {
+    min-height:320px;
+    display:flex; align-items:center; justify-content:center;
+    padding:.2rem 0 .1rem;
+  }
+  .viz-scene svg { width:100%; height:auto; max-height:330px; font-family:inherit; display:block; }
+  .viz-scene.chg { opacity:0; transform:translateY(6px); }
+  .viz-scene     { transition:opacity .32s ease, transform .32s ease; }
+
+  .viz-vide { color:var(--text-light); font-size:.95rem; text-align:center; padding:3rem 0; }
+
+  /* ── Le doublon texte : relief pour les teintes sous 3:1 en mode clair ─── */
+  .viz-tableau { padding:.4rem 0 .6rem; }
+  .viz-tableau table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  .viz-tableau th, .viz-tableau td {
+    padding:.42rem .7rem; border-bottom:1px solid var(--border); text-align:right;
+  }
+  .viz-tableau th { color:var(--text-light); font-weight:700; font-size:.84rem; }
+  .viz-tableau td:last-child, .viz-tableau th:last-child {
+    text-align:left; font-variant-numeric:tabular-nums;
+  }
+  .viz-puce {
+    display:inline-block; width:.72rem; height:.72rem; border-radius:3px;
+    margin-left:.45rem; vertical-align:-1px;
+  }
+
+  /* ── Légende : l'identité n'est jamais portée par la couleur seule ─────── */
+  .viz-legende {
+    display:flex; flex-wrap:wrap; gap:.3rem .95rem;
+    justify-content:center; margin-top:.35rem; padding:0 .3rem;
+  }
+  .viz-leg {
+    display:inline-flex; align-items:center; gap:.35rem;
+    font-size:.82rem; color:var(--text-light);
+  }
+  .viz-leg b { color:var(--text); font-variant-numeric:tabular-nums; }
+
+  .viz-pied {
+    display:flex; align-items:center; justify-content:center; gap:.9rem;
+    border-top:1px solid var(--border); padding-top:.55rem; margin-top:.35rem;
+  }
+  .viz-points { display:flex; gap:.4rem; }
+  .viz-point {
+    width:.62rem; height:.62rem; padding:0; border-radius:50%;
+    border:1px solid var(--border); background:var(--bg); cursor:pointer;
+    transition:background .18s, transform .18s;
+  }
+  .viz-point:hover { transform:scale(1.25); }
+  .viz-point.actif { background:var(--primary-l); border-color:var(--primary-l); }
+
+  /* ── Infobulle ─────────────────────────────────────────────────────────── */
+  .viz-tip {
+    position:absolute; z-index:20; pointer-events:none;
+    background:var(--primary-d); color:#fff;
+    font-size:.82rem; line-height:1.5; white-space:nowrap;
+    padding:.35rem .6rem; border-radius:7px;
+    box-shadow:0 4px 14px rgba(0,0,0,.3);
+    transform:translate(-50%, -125%);
+  }
+  .viz-tip b { font-variant-numeric:tabular-nums; }
+
+  /* ═══ التفاصيل ════════════════════════════════════════════════════════════ */
+  .detail-onglets {
+    display:flex; flex-wrap:wrap; gap:.4rem;
+    border-bottom:2px solid var(--border); margin-bottom:1.1rem;
+  }
+  .dtab {
+    font-family:inherit; font-size:.9rem; cursor:pointer;
+    background:none; border:0; border-bottom:3px solid transparent;
+    color:var(--text-light); padding:.5rem .85rem; margin-bottom:-2px;
+    border-radius:7px 7px 0 0;
+    transition:color .16s, border-color .16s, background .16s;
+  }
+  .dtab:hover { color:var(--primary-txt, var(--primary)); background:var(--glow-1); }
+  .dtab.actif { color:var(--primary-txt, var(--primary)); border-bottom-color:var(--accent); font-weight:700; }
+  body[data-theme="5"] .dtab.actif { color:var(--text); }
+
+  .detail-note {
+    margin-top:1.2rem; color:var(--text-light); font-size:.86rem; line-height:1.8;
+  }
+
+  /* ── الرسوم الأفقية ────────────────────────────────────────────────────── */
+  /* `align-items:start` : sans lui, une carte courte s'étire à la hauteur de
+     sa voisine et laisse un grand vide sous ses barres. */
+  .grille-blocs {
+    display:grid; gap:1.1rem; align-items:start;
+    grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));
+  }
+  .bloc-stat { margin:0; }
+
+  .barres { display:flex; flex-direction:column; gap:.42rem; }
+
+  .barre-ligne {
+    display:grid; grid-template-columns:minmax(88px, 34%) 1fr 46px;
+    align-items:center; gap:.6rem; padding:.12rem 0;
+  }
+  .barre-ligne:hover .barre-fill { filter:brightness(1.12); }
+
+  .barre-nom {
+    font-size:.87rem; color:var(--text); overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap;
+  }
+  /* La piste est la grille : discrète, jamais concurrente de la donnée. */
+  .barre-piste {
+    background:var(--bg); border:1px solid var(--border);
+    border-radius:5px; height:17px; overflow:hidden;
+  }
+  /* Une seule teinte : la longueur porte la mesure, pas la couleur.
+     Bout arrondi côté valeur, base plate côté axe (à droite en RTL). */
+  .barre-fill {
+    height:100%; width:0; background:var(--primary-l);
+    border-radius:4px 0 0 4px;
+    transition:width 1s cubic-bezier(.22,.9,.3,1);
+  }
+  .barre-val {
+    font-size:.87rem; font-weight:700; color:var(--text-light);
+    text-align:left; font-variant-numeric:tabular-nums;
+  }
+
+  .bloc-vide { color:var(--text-light); font-size:.9rem; padding:.7rem 0; }
+
+  /* ═══ v1.6.1 — impression A4 ═══════════════════════════════════════════
+     Toutes les rubriques l'une sous l'autre (les onglets disparaissent), sans
+     le عرض تلقائي ni les boutons ; couleurs claires quel que soit le thème. */
+  .stats-entete { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.7rem; }
+  @media print {
+    @page { size: A4 portrait; margin: 12mm; }
+    html body[data-theme] {
+      --card-bg:#fff !important; --bg:#f1f3f6 !important; --text:#000 !important;
+      --text-light:#333 !important; --border:#999 !important; --primary:#1e3a5f !important;
+      --primary-l:#2d5fa8 !important; --primary-d:#132437 !important; --primary-txt:#1e3a5f !important;
+      --accent:#2d5fa8 !important; --shadow:none !important;
+      font-size: 10.5pt;
+    }
+    #carrousel, .detail-onglets, .stats-entete .btn { display:none !important; }
+    .dpan, .dpan[hidden] { display:block !important; }
+    .dpan + .dpan { margin-top: 5mm; }
+    #d-part, #d-dor, #d-temps, #d-mawad { break-before: auto; }
+    .pan-titre { font-size: 12.5pt; margin: 0 0 3mm; padding-bottom: 1.5mm;
+                 border-bottom: 1.5px solid #000; break-after: avoid; }
+    .page-header h1 { font-size: 16pt; margin: 0 0 4mm; }
+    .kpi-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 3mm !important; }
+    .kpi { opacity:1 !important; transform:none !important; transition:none !important;
+           padding: 3mm 2mm !important; border:1px solid #999 !important; border-top:3px solid #2d5fa8 !important;
+           break-inside: avoid; }
+    .kpi-val { font-size: 16pt !important; }
+    .grille-blocs { grid-template-columns: 1fr 1fr !important; gap: 4mm !important; }
+    .bloc-stat { break-inside: avoid; padding: 3mm !important; }
+    .barre-piste { background:#f1f3f6 !important; border-color:#bbb !important; }
+    .barre-fill { transition:none !important; background:#2d5fa8 !important;
+                  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .barre-nom { white-space: normal !important; }
+    .detail-note { font-size: 8.5pt; margin-top: 2mm; }
+  }
+
+  @media (max-width:620px) {
+    .viz-head { flex-direction:column; }
+    .viz-scene { min-height:260px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kpi, .barre-fill, .viz-scene, .viz-point { transition:none; }
+  }
+</style>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. Les dessinateurs — SVG à la main, aucune bibliothèque
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  var scene   = document.getElementById('vizScene');
+  if (!scene) return;
+
+  var racine  = document.getElementById('carrousel');
+  var elTitre = document.getElementById('vizTitre');
+  var elSous  = document.getElementById('vizSous');
+  var elKind  = document.getElementById('vizKind');
+  var elPts   = document.getElementById('vizPoints');
+  var elTip   = document.getElementById('vizTip');
+  var elTab   = document.getElementById('vizTableau');
+  var btnTab  = document.getElementById('vizTable');
+  var btnStop = document.getElementById('vizPause');
+
+  var reduit = window.matchMedia
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var D;
+  try { D = JSON.parse(document.getElementById('viz-data').textContent); }
+  catch (e) { D = {}; }
+
+  /* ── Outils ─────────────────────────────────────────────────────────────── */
+  function esc(t) {
+    return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function css(nom) {
+    return getComputedStyle(racine).getPropertyValue(nom).trim();
+  }
+  function teintes() {
+    return [css('--v1'), css('--v2'), css('--v3'), css('--v4'), css('--v5'), css('--v6')];
+  }
+  /* Un pas d'axe ENTIER (on compte des effectifs) et le MOINS de vide possible
+     au-dessus de la plus haute valeur : un plafond à 600 pour un maximum de
+     401 écrase le رسم sur le tiers bas de la zone. On retient le pas « rond »
+     qui perd le moins, puis, à perte égale, celui qui trace le moins de
+     lignes. */
+  function echelle(maxV) {
+    if (!(maxV > 0)) return { max: 1, pas: 1, n: 1 };
+    var exp = Math.pow(10, Math.floor(Math.log10(maxV)));
+    var best = null;
+    [1, 2, 2.5, 5, 10].forEach(function (m) {
+      [exp / 100, exp / 10, exp, exp * 10].forEach(function (e) {
+        var pas = Math.round(m * e);
+        if (pas < 1) return;
+        var n = Math.ceil(maxV / pas);
+        if (n < 3 || n > 6) return;               /* 3 à 6 intervalles : lisible */
+        var perte = pas * n - maxV;
+        if (!best || perte < best.perte || (perte === best.perte && n < best.n)) {
+          best = { pas: pas, n: n, perte: perte };
+        }
+      });
+    });
+    if (!best) {
+      var p = Math.max(1, Math.ceil(maxV / 4));
+      best = { pas: p, n: 4 };
+    }
+    return { max: best.pas * best.n, pas: best.pas, n: best.n };
+  }
+  function somme(paires) {
+    return paires.reduce(function (t, p) { return t + (+p[1] || 0); }, 0);
+  }
+  function couper(t, n) {
+    t = String(t);
+    return t.length > n ? t.slice(0, n - 1) + '…' : t;
+  }
+  function vide() {
+    return '<div class="viz-vide">لا توجد معطيات بعد — ستظهر الرسوم بمجرّد تسجيل أوّل برنامج.</div>';
+  }
+
+  /* Géométrie commune aux رسوم cartésiens. En RTL la première catégorie est
+     à DROITE : le رسم se lit dans le sens du texte. */
+  var W = 680, H = 300, PT = 26, PB = 56, PL = 18, PR = 46;
+
+  function cadre(ech) {
+    var hP = H - PT - PB, n = ech.n || 4, g = '', y, i;
+    for (i = 0; i <= n; i++) {
+      y = PT + hP - (hP * i / n);
+      g += '<line x1="' + PL + '" y1="' + y.toFixed(1) + '" x2="' + (W - PR)
+         + '" y2="' + y.toFixed(1) + '" stroke="var(--v-grille)" stroke-width="1"/>'
+         + '<text x="' + (W - PR + 7) + '" y="' + (y + 4).toFixed(1) + '" '
+         + 'font-size="11" fill="var(--text-light)" text-anchor="start">'
+         + (ech.pas * i) + '</text>';
+    }
+    return g;
+  }
+
+  /* ── الرسم البياني بالأعمدة (histogramme) ───────────────────────────────── */
+  function colonnes(paires, unite) {
+    if (!paires.length || somme(paires) <= 0) return vide();
+    var n    = paires.length,
+        ech  = echelle(Math.max.apply(null, paires.map(function (p) { return +p[1] || 0; }))),
+        hP   = H - PT - PB,
+        base = PT + hP,
+        pas  = (W - PL - PR) / n,
+        larg = Math.min(42, pas * 0.58),
+        r    = 4,
+        out  = cadre(ech);
+
+    out += '<line x1="' + PL + '" y1="' + base + '" x2="' + (W - PR) + '" y2="' + base
+         + '" stroke="var(--v-axe)" stroke-width="1"/>';
+
+    paires.forEach(function (p, i) {
+      var v  = +p[1] || 0,
+          cx = (W - PR) - (i + 0.5) * pas,          /* RTL : i=0 à droite */
+          h  = v <= 0 ? 0 : Math.max(2, (v / ech.max) * hP),
+          y  = base - h,
+          x  = cx - larg / 2,
+          rr = Math.min(r, h);
+
+      if (h > 0) {
+        out += '<path d="M' + x.toFixed(1) + ',' + base
+             + ' L' + x.toFixed(1) + ',' + (y + rr).toFixed(1)
+             + ' Q' + x.toFixed(1) + ',' + y.toFixed(1) + ' ' + (x + rr).toFixed(1) + ',' + y.toFixed(1)
+             + ' L' + (x + larg - rr).toFixed(1) + ',' + y.toFixed(1)
+             + ' Q' + (x + larg).toFixed(1) + ',' + y.toFixed(1) + ' ' + (x + larg).toFixed(1) + ',' + (y + rr).toFixed(1)
+             + ' L' + (x + larg).toFixed(1) + ',' + base + ' Z" fill="var(--v-serie)"'
+             + ' class="v-mark" data-nom="' + esc(p[0]) + '" data-val="' + v
+             + '" data-unite="' + esc(unite || '') + '"/>';
+        out += '<text x="' + cx.toFixed(1) + '" y="' + (y - 6).toFixed(1) + '" font-size="11.5"'
+             + ' font-weight="700" fill="var(--text)" text-anchor="middle">' + v + '</text>';
+      }
+      out += '<text x="' + cx.toFixed(1) + '" y="' + (base + 17) + '" font-size="11"'
+           + ' fill="var(--text-light)" text-anchor="middle">' + esc(couper(p[0], 11)) + '</text>';
+    });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img">' + out + '</svg>';
+  }
+
+  /* ── المنحنى (courbe) ───────────────────────────────────────────────────── */
+  function courbe(paires, unite) {
+    if (!paires.length || somme(paires) <= 0) return vide();
+    var n    = paires.length,
+        ech  = echelle(Math.max.apply(null, paires.map(function (p) { return +p[1] || 0; }))),
+        hP   = H - PT - PB,
+        base = PT + hP,
+        pas  = (W - PL - PR) / n,
+        out  = cadre(ech),
+        pts  = [];
+
+    paires.forEach(function (p, i) {
+      var v = +p[1] || 0;
+      pts.push([(W - PR) - (i + 0.5) * pas, base - (v / ech.max) * hP, v, p[0]]);
+    });
+
+    out += '<line x1="' + PL + '" y1="' + base + '" x2="' + (W - PR) + '" y2="' + base
+         + '" stroke="var(--v-axe)" stroke-width="1"/>';
+
+    var d = pts.map(function (q, i) {
+      return (i ? 'L' : 'M') + q[0].toFixed(1) + ',' + q[1].toFixed(1);
+    }).join(' ');
+
+    /* Série unique : l'aire est permise et aide à lire le volume. */
+    out += '<path d="' + d + ' L' + pts[pts.length - 1][0].toFixed(1) + ',' + base
+         + ' L' + pts[0][0].toFixed(1) + ',' + base + ' Z" fill="var(--v-serie)" opacity=".13"/>';
+    out += '<path d="' + d + '" fill="none" stroke="var(--v-serie)" stroke-width="2"'
+         + ' stroke-linejoin="round" stroke-linecap="round"/>';
+
+    pts.forEach(function (q) {
+      /* Anneau de surface 2px : le point reste lisible s'il chevauche la ligne. */
+      out += '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="4.5"'
+           + ' fill="var(--v-serie)" stroke="var(--v-fond)" stroke-width="2"'
+           + ' class="v-mark" data-nom="' + esc(q[3]) + '" data-val="' + q[2]
+           + '" data-unite="' + esc(unite || '') + '"/>';
+      if (q[2] > 0) {
+        out += '<text x="' + q[0].toFixed(1) + '" y="' + (q[1] - 11).toFixed(1) + '" font-size="11"'
+             + ' font-weight="700" fill="var(--text)" text-anchor="middle">' + q[2] + '</text>';
+      }
+      out += '<text x="' + q[0].toFixed(1) + '" y="' + (base + 17) + '" font-size="11"'
+           + ' fill="var(--text-light)" text-anchor="middle">' + esc(couper(q[3], 8)) + '</text>';
+    });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img">' + out + '</svg>';
+  }
+
+  /* ── الرسم الدائري (diagramme) ──────────────────────────────────────────── */
+  function anneau(paires, unite) {
+    var util = paires.filter(function (p) { return (+p[1] || 0) > 0; });
+    var tot  = somme(util);
+    if (!util.length || tot <= 0) return vide();
+
+    var S = 300, cx = S / 2, cy = 146, R = 112, r = 66,
+        tt = teintes(), out = '', ang = -Math.PI / 2;
+
+    function pt(a, rad) {
+      return [(cx + rad * Math.cos(a)).toFixed(2), (cy + rad * Math.sin(a)).toFixed(2)];
+    }
+
+    if (util.length === 1) {
+      /* Une seule part : deux cercles, l'arc dégénérerait. */
+      out += '<circle cx="' + cx + '" cy="' + cy + '" r="' + ((R + r) / 2) + '" fill="none"'
+           + ' stroke="' + tt[0] + '" stroke-width="' + (R - r) + '"'
+           + ' class="v-mark" data-nom="' + esc(util[0][0]) + '" data-val="' + util[0][1]
+           + '" data-unite="' + esc(unite || '') + '"/>';
+    } else {
+      util.forEach(function (p, i) {
+        var part = (+p[1]) / tot,
+            a0   = ang,
+            a1   = ang + part * Math.PI * 2,
+            gr   = (a1 - a0) > Math.PI ? 1 : 0,
+            e0   = pt(a0, R), e1 = pt(a1, R),
+            i1   = pt(a1, r), i0 = pt(a0, r);
+        ang = a1;
+
+        /* Le trait de surface de 2px crée l'écart entre parts voisines. */
+        out += '<path d="M' + e0[0] + ',' + e0[1]
+             + ' A' + R + ',' + R + ' 0 ' + gr + ',1 ' + e1[0] + ',' + e1[1]
+             + ' L' + i1[0] + ',' + i1[1]
+             + ' A' + r + ',' + r + ' 0 ' + gr + ',0 ' + i0[0] + ',' + i0[1]
+             + ' Z" fill="' + tt[i % tt.length] + '" stroke="var(--v-fond)" stroke-width="2"'
+             + ' stroke-linejoin="round" class="v-mark" data-nom="' + esc(p[0])
+             + '" data-val="' + p[1] + '" data-unite="' + esc(unite || '') + '"/>';
+
+        /* Étiquette directe dès que la part est lisible : la couleur ne porte
+           jamais l'information seule (trois teintes passent sous 3:1 en clair). */
+        if (part >= 0.07) {
+          var m = pt((a0 + a1) / 2, (R + r) / 2);
+          out += '<text x="' + m[0] + '" y="' + m[1] + '" font-size="12.5" font-weight="700"'
+               + ' fill="#fff" text-anchor="middle" dominant-baseline="central"'
+               + ' paint-order="stroke" stroke="rgba(0,0,0,.34)" stroke-width="2.6">'
+               + Math.round(part * 100) + '%</text>';
+        }
+      });
+    }
+
+    out += '<text x="' + cx + '" y="' + (cy - 7) + '" font-size="30" font-weight="700"'
+         + ' fill="var(--text)" text-anchor="middle">' + tot + '</text>'
+         + '<text x="' + cx + '" y="' + (cy + 17) + '" font-size="12"'
+         + ' fill="var(--text-light)" text-anchor="middle">' + esc(unite || 'المجموع') + '</text>';
+
+    var leg = util.map(function (p, i) {
+      return '<span class="viz-leg"><span class="viz-puce" style="background:'
+           + tt[i % tt.length] + '"></span>' + esc(p[0]) + ' <b>' + p[1] + '</b></span>';
+    }).join('');
+
+    return '<div style="width:100%;">'
+         + '<svg viewBox="0 0 ' + S + ' 268" role="img" style="max-height:250px;margin:0 auto;">'
+         + out + '</svg>'
+         + '<div class="viz-legende">' + leg + '</div></div>';
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     2. Les رسوم du carrousel — ce que le مركز a fait
+     ═════════════════════════════════════════════════════════════════════════ */
+  var VUES = [
+    { kind:'منحنى',      titre:'نشاط المركز على مدار السنة',
+      sous:'عدد برامج التكوين المُحدَثة في كلّ شهر.',
+      data:D.mois || [],       unite:'برنامجًا', rendu:courbe },
+
+    { kind:'رسم بالأعمدة', titre:'الدورات التكوينية حسب السنة',
+      sous:'حجم نشاط المركز سنةً بعد سنة.',
+      data:D.annee || [],      unite:'دورة',    rendu:colonnes },
+
+    { kind:'رسم دائري',   titre:'توزيع المشاركين حسب الصنف',
+      sous:'الأصناف محتسبة من رتب المشاركين حسب جدول الأصناف المعتمد.',
+      data:D.classes || [],    unite:'مشاركًا',  rendu:anneau },
+
+    { kind:'رسم بالأعمدة', titre:'المشاركون حسب الرتبة',
+      sous:'أكثر ثماني رتب حضورًا في دورات المركز.',
+      data:D.grades || [],     unite:'مشاركًا',  rendu:colonnes },
+
+    { kind:'رسم دائري',   titre:'مواد التكوين حسب النوع',
+      sous:'تركيبة رصيد المركز من المواد التكوينية.',
+      data:D.types || [],      unite:'مادة',    rendu:anneau },
+
+    { kind:'رسم بالأعمدة', titre:'الدورات حسب المكوّن',
+      sous:'أكثر ستة مكوّنين تأطيرًا للدورات.',
+      data:D.formateurs || [], unite:'دورة',    rendu:colonnes }
+  ];
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     3. Le carrousel — 3 s par رسم, et la main reprend le dessus
+     ═════════════════════════════════════════════════════════════════════════ */
+  var idx = 0, minuteur = null, enPause = false, survol = false, tableOuverte = false;
+  var DUREE = 3000;
+
+  VUES.forEach(function (v, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'viz-point' + (i ? '' : ' actif');
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-label', v.titre);
+    b.addEventListener('click', function () { aller(i, true); });
+    elPts.appendChild(b);
+  });
+
+  function tableauDe(v) {
+    var tt = teintes(), tot = somme(v.data);
+    var lignes = v.data.map(function (p, i) {
+      var pct = tot > 0 ? Math.round((+p[1] || 0) / tot * 100) : 0;
+      return '<tr><td><span class="viz-puce" style="background:'
+           + (v.rendu === anneau ? tt[i % tt.length] : css('--v-serie'))
+           + '"></span>' + esc(p[0]) + '</td><td>' + (p[1] || 0) + '</td><td>' + pct + '%</td></tr>';
+    }).join('');
+    return '<table><thead><tr><th>البيان</th><th>' + esc(v.unite)
+         + '</th><th>النسبة</th></tr></thead><tbody>' + lignes + '</tbody></table>';
+  }
+
+  function peindre() {
+    var v = VUES[idx];
+    elKind.textContent  = v.kind;
+    elTitre.textContent = v.titre;
+    elSous.textContent  = v.sous;
+    scene.innerHTML     = v.rendu(v.data, v.unite);
+    elTab.innerHTML     = v.data.length ? tableauDe(v) : '';
+    Array.prototype.forEach.call(elPts.children, function (b, i) {
+      b.classList.toggle('actif', i === idx);
+      b.setAttribute('aria-selected', i === idx ? 'true' : 'false');
+    });
+  }
+
+  function aller(n, manuel) {
+    idx = (n + VUES.length) % VUES.length;
+    if (reduit) { peindre(); }
+    else {
+      scene.classList.add('chg');
+      setTimeout(function () { peindre(); scene.classList.remove('chg'); }, 170);
+    }
+    if (manuel) programmer();
+  }
+
+  function programmer() {
+    clearTimeout(minuteur);
+    if (enPause || survol || tableOuverte) return;
+    minuteur = setTimeout(function () { aller(idx + 1); programmer(); }, DUREE);
+  }
+
+  btnStop.addEventListener('click', function () {
+    enPause = !enPause;
+    btnStop.textContent = enPause ? '▶' : '⏸';
+    btnStop.setAttribute('aria-label', enPause ? 'استئناف العرض التلقائي' : 'إيقاف العرض التلقائي');
+    if (enPause) clearTimeout(minuteur);
+    else programmer();
+  });
+  document.getElementById('vizPrev').addEventListener('click', function () { aller(idx - 1, true); });
+  document.getElementById('vizNext').addEventListener('click', function () { aller(idx + 1, true); });
+
+  btnTab.addEventListener('click', function () {
+    tableOuverte = !tableOuverte;
+    btnTab.setAttribute('aria-pressed', tableOuverte ? 'true' : 'false');
+    scene.hidden = tableOuverte;
+    elTab.hidden = !tableOuverte;
+    if (tableOuverte) clearTimeout(minuteur);
+    else programmer();
+  });
+
+  /* Le survol suspend : on ne perd pas un رسم qu'on est en train de lire. */
+  racine.addEventListener('mouseenter', function () {
+    survol = true; clearTimeout(minuteur);
+  });
+  racine.addEventListener('mouseleave', function () {
+    survol = false; elTip.hidden = true; programmer();
+  });
+
+  /* ── Infobulle sur les marques ──────────────────────────────────────────── */
+  scene.addEventListener('mouseover', function (e) {
+    var m = e.target.closest ? e.target.closest('.v-mark') : null;
+    if (!m) return;
+    elTip.innerHTML = esc(m.getAttribute('data-nom')) + ' : <b>'
+                    + esc(m.getAttribute('data-val')) + '</b> '
+                    + esc(m.getAttribute('data-unite') || '');
+    var b = m.getBoundingClientRect(), c = racine.getBoundingClientRect();
+    elTip.style.left = (b.left + b.width / 2 - c.left) + 'px';
+    elTip.style.top  = (b.top - c.top) + 'px';
+    elTip.hidden = false;
+  });
+  scene.addEventListener('mouseout', function (e) {
+    if (e.target.closest && e.target.closest('.v-mark')) elTip.hidden = true;
+  });
+
+  /* Le thème repeint les teintes : on redessine avec les nouvelles variables. */
+  var majTheme = new MutationObserver(function () { peindre(); });
+  majTheme.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
+
+  peindre();
+  programmer();
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4. Les onglets du détail
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var tabs = document.querySelectorAll('.dtab');
+  if (!tabs.length) return;
+
+  Array.prototype.forEach.call(tabs, function (t) {
+    t.addEventListener('click', function () {
+      Array.prototype.forEach.call(tabs, function (o) {
+        o.classList.remove('actif');
+        o.setAttribute('aria-selected', 'false');
+        var p = document.getElementById(o.dataset.cible);
+        if (p) p.hidden = true;
+      });
+      t.classList.add('actif');
+      t.setAttribute('aria-selected', 'true');
+      var pan = document.getElementById(t.dataset.cible);
+      if (pan) { pan.hidden = false; reveler(pan); }
+    });
+  });
+
+  /* ── Animation à l'apparition ────────────────────────────────────────────
+     Les valeurs sont déjà dans la page : l'animation ne fait que les révéler.
+     Sans IntersectionObserver (ou en « animations réduites »), tout s'affiche
+     immédiatement — le chiffre prime sur l'effet. */
+  var reduit = window.matchMedia
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function compter(el) {
+    var cible = parseFloat(el.getAttribute('data-cible')) || 0;
+    var dec = el.classList.contains('kpi-decimal');
+    if (reduit || cible === 0) { el.textContent = dec ? cible.toFixed(1) : cible; return; }
+    var duree = 900, debut = performance.now();
+    function pas(t) {
+      var p = Math.min((t - debut) / duree, 1);
+      var v = cible * (1 - Math.pow(1 - p, 3));        // easeOutCubic
+      el.textContent = dec ? v.toFixed(1) : Math.round(v);
+      if (p < 1) requestAnimationFrame(pas);
+      else el.textContent = dec ? cible.toFixed(1) : cible;
+    }
+    requestAnimationFrame(pas);
+  }
+
+  function revelerBloc(bloc) {
+    bloc.classList.add('vu');
+    var val = bloc.querySelector('.kpi-val');
+    if (val && !val.dataset.fait) { val.dataset.fait = '1'; compter(val); }
+    bloc.querySelectorAll('.barre-fill').forEach(function (f, i) {
+      var l = f.getAttribute('data-largeur') || 0;
+      setTimeout(function () { f.style.width = l + '%'; }, reduit ? 0 : i * 45);
+    });
+  }
+
+  function reveler(racine) {
+    (racine || document).querySelectorAll('.kpi, .bloc-stat').forEach(revelerBloc);
+  }
+  window.reveler = reveler;
+
+  /* v1.6.1 — avant l'impression : toutes les valeurs à leur état final, sans
+     attendre les animations (chiffres, longueurs des barres). */
+  function toutFiger() {
+    document.querySelectorAll('.kpi, .bloc-stat').forEach(function (b) { b.classList.add('vu'); });
+    document.querySelectorAll('.kpi-val').forEach(function (el) {
+      var cible = parseFloat(el.getAttribute('data-cible')) || 0;
+      el.dataset.fait = '1';
+      el.textContent = el.classList.contains('kpi-decimal') ? cible.toFixed(1) : cible;
+    });
+    document.querySelectorAll('.barre-fill').forEach(function (f) {
+      f.style.width = (f.getAttribute('data-largeur') || 0) + '%';
+    });
+  }
+  window.addEventListener('beforeprint', toutFiger);
+  window.imprimerStats = function () { toutFiger(); window.print(); };
+
+  reveler(document.getElementById('d-kpi'));
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+{% block title %}تعريف بالبرنامج – نظام إدارة التكوين{% endblock %}
+
+{# ═══════════════════════════════════════════════════════════════════════════
+   تعريف بالبرنامج
+
+   Cette page n'appartient à AUCUN قسم : ni قائمة, ni nom de porte sous le
+   زر العودة. Elle se lit d'un trait, de haut en bas, comme un dossier :
+
+     1. l'ouverture — les chiffres réels du centre ;
+     2. le parcours d'une دورة — un fil qui se trace au défilement ;
+     3. ce que la منظومة produit — les وثائق, en feuillets ;
+     4. ce qu'elle garantit ;
+     5. qui l'a faite.
+
+   Aucune ressource externe : la police Amiri est servie localement.
+   ═══════════════════════════════════════════════════════════════════════════ #}
+
+{% block section_bloc %}{% endblock %}
+{% block navmenu %}{% endblock %}
+
+{% block content %}
+<article class="ap">
+
+  {# ═══ 1. الافتتاح ═══════════════════════════════════════════════════════ #}
+  <header class="ap-hero">
+    <div class="ap-hero__sceau" aria-hidden="true">
+      <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="">
+    </div>
+    <p class="ap-surtitre">{{ nom_centre }}</p>
+    <h1 class="ap-titre">نظام إدارة<br><span>التكوين الديواني</span></h1>
+    <p class="ap-chapeau">
+      من فكرة الدّورة إلى آخر وثيقة خلاص، مسارٌ واحد متّصل:
+      كلّ معطى يُدخَل مرّة واحدة، وكلّ وثيقة تُولَد منه جاهزة للإمضاء.
+    </p>
+
+    <div class="ap-chiffres" role="list">
+      {% for val, lbl in [
+          (chiffres.programmes,   'برنامج تكوين'),
+          (chiffres.dorrat,       'دورة تكوينية'),
+          (chiffres.participants, 'مشاركًا'),
+          (chiffres.mawad,        'مادّة تكوينيّة'),
+      ] %}
+      <div class="ap-chiffre" role="listitem">
+        <span class="ap-chiffre__val" data-cible="{{ val }}">{{ val }}</span>
+        <span class="ap-chiffre__lbl">{{ lbl }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="ap-chiffres-note">حصيلة المركز كما سجّلتها المنظومة إلى اليوم.</p>
+
+    <a href="#parcours" class="ap-descendre">
+      <span>اكتشف مسار الدّورة</span>
+      <span class="ap-descendre__fleche" aria-hidden="true">↓</span>
+    </a>
+  </header>
+
+  {# ═══ 2. مسار الدّورة ═════════════════════════════════════════════════════ #}
+  <section class="ap-section" id="parcours">
+    <p class="ap-kicker">الفصل الأوّل</p>
+    <h2 class="ap-h2">مسار دورةٍ تكوينيّة</h2>
+    <p class="ap-intro">
+      ستّ محطّات، بالتّرتيب. لا تُفتَح محطّة قبل إتمام سابقتها، وكلّ جواب يُحفظ فورًا:
+      انقطاعُ الكهرباء لا يُضيّع شيئًا، والعمل يُستأنَف من حيث توقّف.
+    </p>
+
+    <div class="ap-fil">
+      <span class="ap-fil__trait" aria-hidden="true"><span id="apTrait"></span></span>
+      <ol class="ap-fil__liste">
+
+      <li class="ap-etape rev">
+        <span class="ap-etape__num">1</span>
+        <div class="ap-etape__corps">
+          <h3>المواد والمكوّنون</h3>
+          <p>تُسجَّل المادّة مرّة واحدة — أو تُستخرَج آليًّا من ملفّ بطاقتها البيداغوجيّة بكامل
+             محاورها وأهدافها — ويُسجَّل المكوّنون يدويًّا أو دفعةً من ملفّ إكسال.</p>
+        </div>
+      </li>
+
+      <li class="ap-etape rev">
+        <span class="ap-etape__num">2</span>
+        <div class="ap-etape__corps">
+          <h3>برنامج التكوين</h3>
+          <p>تُدرَج دورات الشّهر في جدول واحد. قبل القبول تتثبّت المنظومة: يومُ أحد؟ تنبيه.
+             نفسُ التّاريخ والفترة والمكان؟ رفض. مشاركٌ في دورتين في آنٍ واحد؟ رفض.</p>
+        </div>
+      </li>
+
+      <li class="ap-etape rev">
+        <span class="ap-etape__num">3</span>
+        <div class="ap-etape__corps">
+          <h3>العدد الرّسمي</h3>
+          <p>عند «تأكيد وإغلاق» يُسند للمراسلة عددها من سلسلتها — الدّاخليّة أو الخارجيّة —
+             دون تكرار ولا فراغ، ويُقيَّد في السّجلّ الرّسمي.</p>
+        </div>
+      </li>
+
+      <li class="ap-etape rev">
+        <span class="ap-etape__num">4</span>
+        <div class="ap-etape__corps">
+          <h3>ملفّ الدّورة</h3>
+          <p>لكلّ دورة: قائمة المشاركين مرتّبةً آليًّا حسب الرّتب، ثمّ البطاقة البيداغوجيّة،
+             ثمّ البرنامج اليومي (من <span dir="ltr">08:00</span> صباحًا أو
+             <span dir="ltr">13:30</span> مساءً)، ثمّ المذكّرة الدّاخليّة.</p>
+        </div>
+      </li>
+
+      <li class="ap-etape rev">
+        <span class="ap-etape__num">5</span>
+        <div class="ap-etape__corps">
+          <h3>التّسجيل النّهائي</h3>
+          <p>تُقفَل الدّورة في المنظومة فلا تُعدَّل بعد ذلك: ما وُقِّع ورقيًّا يبقى مطابقًا لما سُجِّل.</p>
+        </div>
+      </li>
+
+      <li class="ap-etape rev">
+        <span class="ap-etape__num">6</span>
+        <div class="ap-etape__corps">
+          <h3>المستحقّات المالية</h3>
+          <p>بعد إدخال عدد المقرّر الخاصّ بالدّورة وتاريخه، يُؤشَّر على الحضور، ويُحدَّد صنف الدّورة
+             آليًّا من رتب الحاضرين، ثمّ تُعمَّر وثائق الخلاص وفق الجدول المالي.</p>
+        </div>
+      </li>
+      </ol>
+    </div>
+  </section>
+
+  {# ═══ 3. ما تُنتجه المنظومة ════════════════════════════════════════════════ #}
+  <section class="ap-section">
+    <p class="ap-kicker">الفصل الثّاني</p>
+    <h2 class="ap-h2">وثائقُ جاهزة للإمضاء</h2>
+    <p class="ap-intro">كلّها بصيغة PDF، بالعربيّة، بترويسة المركز ومراجعه — تُولَد من المعطيات نفسها فلا تتناقض.</p>
+
+    <div class="ap-feuillets">
+      {% for ico, nom, desc in [
+          ('✉️', 'مراسلة برنامج التكوين', 'الدّاخليّة والخارجيّة، بعددها الرّسمي'),
+          ('🏛', 'مراسلة المدير الجهوي',  'بسلسلتها الخاصّة'),
+          ('👥', 'قائمة المشاركين',       'مرتّبة حسب الرّتب'),
+          ('📘', 'البطاقة البيداغوجيّة',   'المحاور والأهداف والوسائل'),
+          ('🕘', 'برنامج الدّورة',         'التّوقيت، النّشاط، المتدخّلون'),
+          ('📜', 'المذكّرة الدّاخليّة',     'بقائمة الموجَّه إليهم'),
+          ('💰', 'وثائق الخلاص',          'حسب الصّنف والجدول المالي'),
+          ('📝', 'المراسلات الحرّة',       'بنفس السّلاسل والسّجلّ'),
+      ] %}
+      <div class="ap-feuillet rev" style="--i:{{ loop.index0 }}">
+        <span class="ap-feuillet__ico" aria-hidden="true">{{ ico }}</span>
+        <strong>{{ nom }}</strong>
+        <span>{{ desc }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ═══ 4. الضّمانات ═════════════════════════════════════════════════════════ #}
+  <section class="ap-section">
+    <p class="ap-kicker">الفصل الثّالث</p>
+    <h2 class="ap-h2">ما تضمنه المنظومة</h2>
+
+    <div class="ap-garanties">
+      <div class="ap-garantie rev">
+        <span class="ap-garantie__mot">لا يضيع عدد</span>
+        <p>العدد الرّسمي لا يُحذف ولا يُعاد استعماله؛ وما تحرّر عند الفسخ يعود إلى المجمع ويُسند قبل أيّ عدد جديد.</p>
+      </div>
+      <div class="ap-garantie rev">
+        <span class="ap-garantie__mot">لا يضيع معطى</span>
+        <p>نسخةٌ احتياطيّة آليّة عند كلّ إقلاع، وكلّ جواب يُحفظ لحظة إدخاله.</p>
+      </div>
+      <div class="ap-garantie rev">
+        <span class="ap-garantie__mot">كلّ عمليّة مُتتبَّعة</span>
+        <p>سجلّ التّدقيق يحفظ من فعل ماذا ومتى — في متناول المشرف العام من «الإعدادات».</p>
+      </div>
+      <div class="ap-garantie rev">
+        <span class="ap-garantie__mot">بلا إنترنت</span>
+        <p>تعمل كاملةً على حاسوب ويندوز واحد، ومعطيات المركز لا تغادر الجهاز.</p>
+      </div>
+    </div>
+  </section>
+
+  {# ═══ 5. التّوقيع ═══════════════════════════════════════════════════════════ #}
+  <footer class="ap-signature rev">
+    <div class="ap-signature__main">
+      <p class="ap-kicker">صمّمها وبرمجها</p>
+      <p class="ap-signature__nom">حازم مسعودي</p>
+      <p class="ap-signature__role">إطار ديواني، رئيس مركز التكوين الديواني بالقصرين، ومطوّر برامج.</p>
+    </div>
+    <dl class="ap-tech">
+      <div><dt>الإصدار</dt><dd>{{ version_label }}</dd></div>
+      <div><dt>البرمجة</dt><dd dir="ltr">Python · Flask · Waitress</dd></div>
+      <div><dt>قاعدة البيانات</dt><dd dir="ltr">SQLite (WAL)</dd></div>
+      <div><dt>الوثائق</dt><dd dir="ltr">ReportLab · arabic-reshaper · python-bidi</dd></div>
+    </dl>
+  </footer>
+
+</article>
+{% endblock %}
+
+
+{% block scripts %}
+<style>
+  /* ═══ Cadre ════════════════════════════════════════════════════════════════
+     Mise en page de dossier : une colonne de lecture étroite, des titres en
+     Amiri grand corps, beaucoup d'air. Toutes les teintes viennent du thème. */
+  .ap { max-width:820px; margin:0 auto; padding:.5rem 0 2rem; }
+
+  .ap-kicker {
+    font-size:.78rem; font-weight:700; letter-spacing:.14em;
+    color:var(--accent); margin-bottom:.35rem;
+  }
+  .ap-h2 {
+    font-size:clamp(1.55rem, 3.2vw, 2.1rem); line-height:1.3;
+    color:var(--primary-txt, var(--primary)); margin-bottom:.6rem;
+  }
+  body[data-theme="5"] .ap-h2 { color:var(--text); }
+  .ap-intro { color:var(--text-light); font-size:1.02rem; line-height:1.95; max-width:62ch; }
+  .ap-section { margin-top:5.5rem; }
+
+  /* ═══ 1. Ouverture ═════════════════════════════════════════════════════════ */
+  .ap-hero { text-align:center; padding:2.2rem 0 1rem; position:relative; }
+  .ap-hero::before {                          /* halo discret derrière le sceau */
+    content:''; position:absolute; top:-2rem; left:50%; width:520px; height:520px;
+    transform:translateX(-50%); z-index:-1; pointer-events:none;
+    background:radial-gradient(circle, var(--glow-2) 0%, transparent 62%);
+  }
+  .ap-hero__sceau {
+    width:96px; height:96px; margin:0 auto 1.4rem; padding:.55rem;
+    border-radius:50%; background:var(--card-bg);
+    box-shadow:0 0 0 1px var(--border), 0 0 0 7px var(--glow-2), var(--shadow);
+    animation:apMonte .9s cubic-bezier(.2,.8,.3,1) both;
+  }
+  .ap-hero__sceau img { width:100%; height:100%; object-fit:contain; border-radius:50%; }
+  .ap-surtitre {
+    color:var(--text-light); font-size:.95rem; letter-spacing:.04em;
+    animation:apMonte .9s .08s cubic-bezier(.2,.8,.3,1) both;
+  }
+  .ap-titre {
+    font-size:clamp(2.2rem, 6vw, 3.6rem); line-height:1.15; margin:.4rem 0 1rem;
+    color:var(--primary-txt, var(--primary)); font-weight:700;
+    animation:apMonte .9s .16s cubic-bezier(.2,.8,.3,1) both;
+  }
+  .ap-titre span { color:var(--accent); }
+  body[data-theme="5"] .ap-titre { color:var(--text); }
+  .ap-chapeau {
+    font-size:1.14rem; line-height:2; color:var(--text); max-width:40ch; margin:0 auto;
+    animation:apMonte .9s .24s cubic-bezier(.2,.8,.3,1) both;
+  }
+
+  .ap-chiffres {
+    display:grid; grid-template-columns:repeat(4, 1fr); margin:2.6rem auto 0;
+    border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+    animation:apMonte .9s .32s cubic-bezier(.2,.8,.3,1) both;
+  }
+  .ap-chiffre { padding:1.25rem .5rem; display:flex; flex-direction:column; gap:.2rem; }
+  .ap-chiffre + .ap-chiffre { border-inline-start:1px solid var(--border); }
+  .ap-chiffre__val {
+    font-size:clamp(1.9rem, 4.4vw, 2.7rem); font-weight:700; line-height:1;
+    color:var(--primary-txt, var(--primary)); font-variant-numeric:tabular-nums;
+  }
+  body[data-theme="5"] .ap-chiffre__val { color:var(--accent); }
+  .ap-chiffre__lbl { font-size:.9rem; color:var(--text-light); }
+  .ap-chiffres-note { font-size:.8rem; color:var(--text-light); margin-top:.6rem; opacity:.85; }
+
+  .ap-descendre {
+    display:inline-flex; flex-direction:column; align-items:center; gap:.3rem;
+    margin-top:2.4rem; color:var(--text-light); text-decoration:none; font-size:.9rem;
+  }
+  .ap-descendre:hover { color:var(--primary-txt, var(--primary)); }
+  .ap-descendre__fleche { font-size:1.3rem; animation:apFlotte 1.8s ease-in-out infinite; }
+
+  /* ═══ 2. Le fil du parcours ════════════════════════════════════════════════
+     Un trait vertical, côté droit (RTL), qui se remplit au fil de la lecture.
+     Chaque محطّة s'y accroche par sa pastille numérotée. */
+  .ap-fil { position:relative; margin-top:2.4rem; }
+  .ap-fil__liste { list-style:none; margin:0; padding:0; }
+  .ap-fil__trait {
+    position:absolute; top:.9rem; bottom:.9rem; right:23px; width:2px;
+    background:var(--border); border-radius:2px; overflow:hidden;
+  }
+  .ap-fil__trait span {
+    display:block; width:100%; height:0; background:var(--accent);
+    transition:height .12s linear;
+  }
+  .ap-etape { display:flex; gap:1.3rem; align-items:flex-start; position:relative; padding-bottom:2.1rem; }
+  .ap-etape:last-child { padding-bottom:0; }
+  .ap-etape__num {
+    flex-shrink:0; width:48px; height:48px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.35rem; font-weight:700;
+    background:var(--card-bg); color:var(--primary-txt, var(--primary));
+    border:2px solid var(--border); position:relative; z-index:1;
+    transition:border-color .5s, background .5s, color .5s, transform .5s;
+  }
+  .ap-etape.vu .ap-etape__num {
+    border-color:var(--accent); background:var(--accent); color:#1a1206;
+    transform:scale(1.04);
+  }
+  .ap-etape__corps {
+    flex:1; background:var(--card-bg); border:1px solid var(--border);
+    border-radius:12px; padding:1rem 1.25rem; box-shadow:var(--shadow);
+  }
+  .ap-etape__corps h3 { font-size:1.2rem; color:var(--text); margin-bottom:.3rem; }
+  .ap-etape__corps p  { color:var(--text-light); line-height:1.95; font-size:.98rem; }
+
+  /* ═══ 3. Feuillets ═════════════════════════════════════════════════════════
+     Chaque وثيقة est un feuillet légèrement incliné, comme posé sur un bureau ;
+     il se redresse au survol. */
+  .ap-feuillets {
+    display:grid; gap:1.1rem; margin-top:2rem;
+    grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
+  }
+  .ap-feuillet {
+    position:relative; display:flex; flex-direction:column; gap:.35rem;
+    min-height:150px; padding:1.1rem 1rem 1rem;
+    background:var(--card-bg); border:1px solid var(--border); border-radius:4px 4px 14px 4px;
+    box-shadow:3px 3px 0 var(--border), var(--shadow);
+    transform:rotate(calc((var(--i) - 3.5) * .45deg));
+    transition:transform .35s cubic-bezier(.2,.8,.3,1), box-shadow .35s;
+  }
+  .ap-feuillet::after {                         /* coin corné */
+    content:''; position:absolute; bottom:0; left:0; width:22px; height:22px;
+    background:linear-gradient(45deg, var(--bg) 50%, var(--border) 50%);
+    border-radius:0 0 0 4px;
+  }
+  .ap-feuillet:hover {
+    transform:rotate(0) translateY(-5px);
+    box-shadow:5px 7px 0 var(--glow-1), var(--shadow);
+  }
+  .ap-feuillet__ico { font-size:1.7rem; line-height:1; margin-bottom:.35rem; }
+  .ap-feuillet strong { font-size:1.02rem; color:var(--text); }
+  .ap-feuillet span:last-child { font-size:.85rem; color:var(--text-light); line-height:1.6; }
+
+  /* ═══ 4. Garanties ═════════════════════════════════════════════════════════ */
+  .ap-garanties { display:grid; grid-template-columns:1fr 1fr; gap:0; margin-top:1.8rem; }
+  .ap-garantie { padding:1.4rem 1.3rem; border-top:1px solid var(--border); }
+  .ap-garantie:nth-child(odd) { border-inline-end:1px solid var(--border); }
+  .ap-garantie__mot {
+    display:block; font-size:1.4rem; font-weight:700; color:var(--primary-txt, var(--primary)); margin-bottom:.35rem;
+  }
+  body[data-theme="5"] .ap-garantie__mot { color:var(--accent); }
+  .ap-garantie p { color:var(--text-light); line-height:1.9; font-size:.96rem; }
+
+  /* ═══ 5. Signature ═════════════════════════════════════════════════════════ */
+  .ap-signature {
+    margin-top:5.5rem; padding:2rem 1.8rem; border-radius:16px;
+    background:linear-gradient(150deg, var(--primary-l), var(--primary-d));
+    color:#fff; display:grid; grid-template-columns:1.1fr 1fr; gap:1.8rem; align-items:center;
+    box-shadow:var(--shadow);
+  }
+  .ap-signature .ap-kicker { color:var(--accent); }
+  .ap-signature__nom { font-size:2.2rem; font-weight:700; line-height:1.2; }
+  .ap-signature__role { opacity:.85; line-height:1.8; margin-top:.3rem; }
+  .ap-tech { display:grid; gap:.55rem; font-size:.88rem; }
+  .ap-tech div { display:flex; justify-content:space-between; gap:1rem;
+                 border-bottom:1px solid rgba(255,255,255,.16); padding-bottom:.45rem; }
+  .ap-tech dt { opacity:.75; }
+  .ap-tech dd { font-weight:700; text-align:left; }
+
+  /* ═══ Apparitions ══════════════════════════════════════════════════════════ */
+  .rev { opacity:0; translate:0 22px;
+         transition:opacity .7s ease, translate .7s cubic-bezier(.2,.8,.3,1); }
+  .rev.vu { opacity:1; translate:0 0; }
+  .ap-feuillet.rev { transition-delay:calc(var(--i) * 60ms); }
+
+  @keyframes apMonte  { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
+  @keyframes apFlotte { 0%,100% { transform:translateY(0); } 50% { transform:translateY(6px); } }
+
+  @media (max-width:720px) {
+    .ap-chiffres { grid-template-columns:repeat(2, 1fr); }
+    .ap-chiffre:nth-child(3) { border-inline-start:0; }
+    .ap-chiffre:nth-child(n+3) { border-top:1px solid var(--border); }
+    .ap-garanties, .ap-signature { grid-template-columns:1fr; }
+    .ap-garantie:nth-child(odd) { border-inline-end:0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rev { opacity:1; translate:none; transition:none; }
+    .ap-hero__sceau, .ap-surtitre, .ap-titre, .ap-chapeau, .ap-chiffres,
+    .ap-descendre__fleche { animation:none; }
+    .ap-feuillet { transition:none; }
+  }
+</style>
+
+<script>
+(function () {
+  'use strict';
+  var reduit = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── Les chiffres de l'ouverture comptent jusqu'à leur valeur ─────────── */
+  document.querySelectorAll('.ap-chiffre__val').forEach(function (el) {
+    var cible = parseInt(el.getAttribute('data-cible'), 10) || 0;
+    if (reduit || cible === 0) return;               // la valeur est déjà écrite
+    var debut = null, duree = 1300;
+    el.textContent = '0';
+    function pas(t) {
+      if (debut === null) debut = t;
+      var p = Math.min((t - debut) / duree, 1);
+      el.textContent = Math.round(cible * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(pas);
+    }
+    setTimeout(function () { requestAnimationFrame(pas); }, 450);
+  });
+
+  /* ── Apparition au défilement ──────────────────────────────────────────── */
+  var blocs = document.querySelectorAll('.rev');
+  if (reduit || !('IntersectionObserver' in window)) {
+    blocs.forEach(function (b) { b.classList.add('vu'); });
+  } else {
+    var obs = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('vu'); obs.unobserve(e.target); }
+      });
+    }, { threshold: 0.2, rootMargin: '0px 0px -8% 0px' });
+    blocs.forEach(function (b) { obs.observe(b); });
+  }
+
+  /* ── Le fil du parcours se remplit avec la lecture ─────────────────────── */
+  var fil = document.querySelector('.ap-fil'), trait = document.getElementById('apTrait');
+  if (!fil || !trait) return;
+  if (reduit) { trait.style.height = '100%'; return; }
+  function majFil() {
+    var r = fil.getBoundingClientRect(), vh = window.innerHeight;
+    var p = (vh * 0.62 - r.top) / r.height;
+    trait.style.height = (Math.max(0, Math.min(1, p)) * 100).toFixed(1) + '%';
+  }
+  window.addEventListener('scroll', majFil, { passive: true });
+  window.addEventListener('resize', majFil);
+  majFil();
+})();
+</script>
+{% endblock %}

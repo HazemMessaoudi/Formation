@@ -1,0 +1,86 @@
+{% extends "base_parametres.html" %}
+{% block title %}جدول الأصناف – المستحقّات{% endblock %}
+
+{#  Le barème « رتبة → صنف ». Semé avec la table officielle au premier
+    démarrage, corrigible ensuite : une رتبة ajoutée par le centre reçoit son
+    صنف ici, sans toucher au code. #}
+
+{% block content %}
+<div class="page-header">
+  <h1>⚖️ جدول الأصناف</h1>
+</div>
+<p style="color:var(--text-light);margin-bottom:1.3rem;line-height:1.85;">
+  تصنيف الرتب المعتمد في احتساب المستحقّات: <strong>أ1</strong>، <strong>أ2</strong>،
+  <strong>ب</strong>، <strong>ج</strong>، <strong>د</strong>.
+  الجدول مُعمَّر بالتصنيف الرسمي؛ الرتب التي يضيفها المركز تُصنَّف من هنا.
+  الرتبة دون صنف (المدنيّون) لا تُحتسب في تحديد صنف الدورة.
+</p>
+
+<form method="POST">
+  <div class="card">
+    <div class="table-wrapper">
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th style="width:46px;">ر.ع</th>
+            <th>الرتبة</th>
+            <th style="width:240px;">الصنف</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in bareme %}
+          <tr>
+            <td class="num-cell">{{ loop.index }}</td>
+            <td><strong>{{ b.grade }}</strong></td>
+            <td>
+              <select name="classe__{{ b.grade }}" class="sel-classe" {% if not est_admin %}disabled{% endif %}>
+                <option value="" {% if not b.classe %}selected{% endif %}>— دون صنف —</option>
+                {% for c in classes %}
+                <option value="{{ c }}" {% if b.classe == c %}selected{% endif %}>الصنف {{ c }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if est_admin %}
+    <div class="actions-bar" style="margin-top:1.1rem;">
+      <button type="submit" class="btn btn-generate">💾 حفظ الجدول</button>
+      <button type="submit" name="action" value="reinitialiser" class="btn btn-cancel"
+              onclick="return confirmerRetour(event);">↺ إرجاع الجدول الرسمي</button>
+    </div>
+    {% else %}
+    <p style="margin-top:1rem;color:var(--text-light);font-size:.88rem;">
+      تعديل هذا الجدول من مشمولات المشرف العام.
+    </p>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .sel-classe {
+    width:100%; padding:.45rem .6rem; border:1px solid var(--border);
+    border-radius:8px; font-family:inherit; font-size:.95rem;
+    background:var(--card-bg); color:var(--text);
+  }
+  .sel-classe:disabled { opacity:.7; cursor:not-allowed; }
+</style>
+<script>
+let _retourValide = false;
+function confirmerRetour(e) {
+  if (_retourValide) return true;
+  e.preventDefault();
+  const bouton = e.target;
+  showConfirmModal(
+    'سيُعاد التصنيف الرسمي لكلّ الرتب المدرجة فيه، وتُلغى التعديلات اليدوية عليها. هل تواصل؟',
+    function () { _retourValide = true; bouton.click(); }
+  );
+  return false;
+}
+</script>
+{% endblock %}

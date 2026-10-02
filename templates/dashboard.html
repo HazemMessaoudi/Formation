@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% from "_graphiques.html" import colonnes %}
+{% block title %}لوحة القيادة – نظام إدارة التكوين{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>📊 لوحة القيادة</h1>
+</div>
+
+{# ── Compteurs généraux ─────────────────────────────────────────────────── #}
+<div class="stats-grid stats-grid--compact">
+  <div class="stat-card stat-blue">
+    <div class="stat-icon">✉️</div>
+    <div class="stat-val">{{ stats.lettres_total }}</div>
+    <div class="stat-lbl">إجمالي المراسلات</div>
+  </div>
+  <div class="stat-card stat-green">
+    <div class="stat-icon">📄</div>
+    <div class="stat-val">{{ stats.lettres_interne }}</div>
+    <div class="stat-lbl">مراسلات داخلية</div>
+  </div>
+  <div class="stat-card stat-gold">
+    <div class="stat-icon">📨</div>
+    <div class="stat-val">{{ stats.lettres_externe }}</div>
+    <div class="stat-lbl">مراسلات خارجية</div>
+  </div>
+  <div class="stat-card stat-navy">
+    <div class="stat-icon">📋</div>
+    <div class="stat-val">{{ stats.formations_total }}</div>
+    <div class="stat-lbl">تكوينات مسجّلة</div>
+  </div>
+  <div class="stat-card stat-teal">
+    <div class="stat-icon">👤</div>
+    <div class="stat-val">{{ stats.mkowin_total }}</div>
+    <div class="stat-lbl">الأسماء</div>
+  </div>
+  <div class="stat-card stat-purple">
+    <div class="stat-icon">📚</div>
+    <div class="stat-val">{{ stats.mawad_total }}</div>
+    <div class="stat-lbl">مواد التكوين</div>
+  </div>
+</div>
+
+{# ── يتطلّب انتباهك ─────────────────────────────────────────────────────── #}
+<h2 class="tb-titre">🔔 يتطلّب انتباهك</h2>
+{% if est_admin and tb.pret_validation %}
+<div class="card tb-pret">
+  <div class="tb-pret__tete">📨 دورات جاهزة للمصادقة النهائيّة
+    <span class="tb-pret__nb">{{ tb.pret_validation|length }}</span></div>
+  <ul class="tb-pret__liste">
+    {% for d in tb.pret_validation %}
+    <li><a href="{{ url_for('mustahaqqat_qima', formation_id=d.id) }}">{{ d.titre }}</a>
+      {% if d.date_formation %}<span class="tb-pret__meta" dir="ltr">{{ d.date_formation }}</span>{% endif %}
+      {% if d.pret_par %}<span class="tb-pret__meta">— {{ d.pret_par }}</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% if sauv_ext and sauv_ext.rappel %}
+{# v1.7 — rappel de copie externe (مشرف عام) #}
+<a class="card tb-sauv-ext" href="{{ url_for('parametres') }}#carteSecurite">
+  <span style="font-size:1.4rem;">💾</span>
+  <span>
+    <strong>{% if sauv_ext.jours is none %}لم تُؤخذ أيّ نسخة احتياطيّة خارجيّة بعد{% else %}آخر نسخة احتياطيّة خارجيّة منذ {{ sauv_ext.jours }} يومًا{% endif %}</strong>
+    <small>انسخ القاعدة إلى مفتاح USB أو قرص خارجي: تلف الحاسوب يُذهب النسخ الداخليّة أيضًا.</small>
+  </span>
+</a>
+{% endif %}
+<div class="tb-alertes">
+  <a class="tb-alerte {{ 'tb-alerte--critique' if tb.en_retard else 'tb-alerte--ok' }}" href="{{ url_for('formations_en_cours') }}">
+    <span class="tb-alerte__ico">{{ '⚠️' if tb.en_retard else '✅' }}</span>
+    <span class="tb-alerte__val">{{ tb.en_retard|length }}</span>
+    <span class="tb-alerte__lbl">برامج متأخّرة<small>دورة فات تاريخها دون تسجيل نهائي</small></span>
+  </a>
+  <a class="tb-alerte {{ 'tb-alerte--attention' if tb.brouillons else 'tb-alerte--ok' }}" href="{{ url_for('formations_en_cours') }}">
+    <span class="tb-alerte__ico">{{ '📝' if tb.brouillons else '✅' }}</span>
+    <span class="tb-alerte__val">{{ tb.brouillons }}</span>
+    <span class="tb-alerte__lbl">مسودّات غير مؤكَّدة<small>برامج لم تُؤكَّد بعد</small></span>
+  </a>
+  <a class="tb-alerte {{ 'tb-alerte--attention' if tb.attente_mustahaqqat else 'tb-alerte--ok' }}" href="{{ url_for('mustahaqqat_ghayr_manjaza') }}">
+    <span class="tb-alerte__ico">{{ '💰' if tb.attente_mustahaqqat else '✅' }}</span>
+    <span class="tb-alerte__val">{{ tb.attente_mustahaqqat }}</span>
+    <span class="tb-alerte__lbl">دورات في انتظار المستحقّات<small>مسجّلة نهائيًّا ولم تُنجز مستحقّاتها</small></span>
+  </a>
+  <a class="tb-alerte {{ 'tb-alerte--info' if tb.numeros_reserves else 'tb-alerte--ok' }}" href="{{ url_for('registre_lettres', type_lettre='interne') }}">
+    <span class="tb-alerte__ico">{{ '🔖' if tb.numeros_reserves else '✅' }}</span>
+    <span class="tb-alerte__val">{{ tb.numeros_reserves }}</span>
+    <span class="tb-alerte__lbl">أعداد محجوزة<small>في سجلّ سنة {{ tb.annee }}</small></span>
+  </a>
+</div>
+
+<div class="tb-grille">
+  {# ── Activité de l'année ── #}
+  <section class="card tb-carte">
+    <div class="tb-carte__tete">
+      <h2>📈 الدورات حسب الشهر — {{ tb.annee }}</h2>
+      <span class="tb-carte__resume">{{ tb.dorrat_annee }} دورة · {{ tb.participants_annee }} مشارك</span>
+    </div>
+    {{ colonnes(graphe, 'عدد الدورات حسب الشهر لسنة ' ~ tb.annee) }}
+    <details class="tb-donnees">
+      <summary>📋 المعطيات في جدول</summary>
+      <table class="list-table">
+        <thead><tr><th>الشهر</th><th>الدورات</th><th>المسجّلة نهائيًّا</th><th>المشاركون</th></tr></thead>
+        <tbody>
+          {% for m in tb.par_mois %}
+          <tr><td>{{ m.mois }}</td><td>{{ m.dorrat }}</td><td>{{ m.finalisees }}</td><td>{{ m.participants }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  </section>
+
+  {# ── Prochaines دورات ── #}
+  <section class="card tb-carte">
+    <div class="tb-carte__tete">
+      <h2>📅 الدورات القادمة</h2>
+      <span class="tb-carte__resume">خلال {{ tb.horizon_jours }} يومًا</span>
+    </div>
+    {% if tb.a_venir %}
+    <ul class="tb-avenir">
+      {% for d in tb.a_venir %}
+      <li>
+        <a href="{{ url_for('detail_lettre', lettre_id=d.lettre_id) }}" class="tb-avenir__lien">
+          <span class="tb-avenir__date" dir="ltr">{{ d.date_formation[8:10] }}/{{ d.date_formation[5:7] }}</span>
+          <span class="tb-avenir__txt">
+            <strong>{{ d.titre }}</strong>
+            <small>{{ d.grade }} {{ d.nom_formateur }}{% if d.lieu_formation %} · {{ d.lieu_formation }}{% endif %} · {{ d.nb_participants }} مشارك</small>
+          </span>
+          <span class="tb-avenir__delai">{% if d.dans_jours == 0 %}اليوم{% elif d.dans_jours == 1 %}غدًا{% else %}بعد {{ d.dans_jours }} يومًا{% endif %}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-msg">لا توجد دورات مبرمجة خلال الأيّام القادمة.</div>
+    {% endif %}
+  </section>
+</div>
+
+{% if activite %}
+<section class="card tb-carte" style="margin-top:1.2rem;">
+  <div class="tb-carte__tete">
+    <h2>🕘 آخر العمليّات</h2>
+    <a href="{{ url_for('page_journal') }}" class="tb-carte__resume">سجلّ التدقيق كاملًا ←</a>
+  </div>
+  <ul class="tb-activite">
+    {% for e in activite %}
+    <li><span dir="ltr" class="tb-activite__h">{{ e.horodatage[5:16] }}</span>
+        <strong>{{ e.utilisateur or '—' }}</strong> · {{ e.action }}{% if e.cible %} <small>({{ e.cible }})</small>{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

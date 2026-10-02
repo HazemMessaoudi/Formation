@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{# قسم الإحصائيات (v1.5) : deux pages, un seul menu. Le passage vers un autre
+   قسم أساسي se fait par le زر العودة إلى الشاشة الرئيسية. #}
+{% block section_icone %}📈{% endblock %}
+{% block section_titre %}إحصائيات{% endblock %}
+{% block navmenu %}
+  <li class="nav-item">
+    <a href="{{ url_for('statistiques') }}" class="nav-link {% if request.endpoint == 'statistiques' %}active{% endif %}">
+      <span class="nav-icon">📈</span> إحصائيات المركز
+    </a>
+  </li>
+  {# V3 — التّقارير : بياني / تحليلي, كتابي… ; V3.0.1 : التقرير السنوي y est rangé
+     (bouton de la page التّقارير) et n'est plus un titre du menu. #}
+  <li class="nav-item">
+    <a href="{{ url_for('rapports') }}" class="nav-link {% if request.endpoint in ('rapports', 'rapport_ecrit', 'rapport_participant', 'rapports_details', 'rapport_annuel') %}active{% endif %}">
+      <span class="nav-icon">📊</span> التّقارير
+    </a>
+  </li>
+{% endblock %}

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" translate="no">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token }}">
+{# A16 : le nom du programme est ajouté une seule fois, quel que soit le titre de la page. #}
+<title>{% block title %}نظام إدارة التكوين{% endblock %}{% if 'نظام إدارة التكوين' not in self.title() %} – نظام إدارة التكوين{% endif %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+</head>
+<body data-theme="0"{% if delai_inactivite %} data-inactivite="{{ delai_inactivite }}" data-logout="{{ url_for('logout', inactivite=1) }}"{% endif %}>
+<script>window.APP_PREFS && APP_PREFS.appliquer();</script>
+{#  N1 : tant que le mot de passe initial n'est pas changé, l'en-tête se réduit
+    au شعار et au nom du programme — aucune navigation n'a de sens avant. #}
+{% set mode_restreint = session.get('doit_changer_mdp') %}
+<!-- خلفية ثلاثية الأبعاد بعمق (كل الثيمات) -->
+<div class="app-bg" aria-hidden="true">
+  <div class="app-bg__orbs"></div>
+  <div class="app-bg__floor"></div>
+  <div class="app-bg__vignette"></div>
+</div>
+
+<nav class="navbar{% if mode_restreint %} navbar--restreinte{% endif %}">
+
+  <!-- ── Barre supérieure : Brand + Actions ── -->
+  <div class="nav-top">
+    <div class="nav-brand">
+      <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="شعار" class="nav-logo">
+      <span class="nav-brand-name">نظام إدارة التكوين الديواني</span>
+    </div>
+
+    {% if not mode_restreint %}
+    {# D4 (v1.5) : recherche unifiée — أسماء، مواد، دورات، مراسلات. Raccourci : Ctrl+K ou « / ». #}
+    <div class="rech-globale" id="rechGlobale" role="search">
+      <span class="rech-globale__ico" aria-hidden="true">🔍</span>
+      <input type="search" id="rechGlobaleInput" placeholder="بحث: اسم، مادّة، دورة، مرجع…  (Ctrl+K)"
+             autocomplete="off" aria-label="بحث في كامل المنظومة" aria-controls="rechGlobaleRes"
+             aria-expanded="false" data-sans-verif>
+      <div class="rech-globale__res" id="rechGlobaleRes" role="listbox" hidden></div>
+    </div>
+    <div class="nav-actions">
+      {# V3.2 — دليل الاستعمال : la fiche de CETTE page #}
+      <a href="{{ url_for('guide') }}{{ '#' ~ aide_fiche if aide_fiche else '' }}" class="aide-btn"
+         title="دليل الاستعمال: شرح هذه الصفحة" aria-label="دليل الاستعمال">؟</a>
+      {# V3.1 — إشعارات المشرف العام #}
+      {% if notifs is not none %}
+      <div class="notif-nav" id="notifNav">
+        <button type="button" class="notif-btn{% if notifs.nb %} notif-btn--actif{% endif %}" onclick="toggleNotifPop(event)"
+                title="الإشعارات" aria-label="الإشعارات: {{ notifs.nb }} جديدة" aria-haspopup="true">
+          <span aria-hidden="true">🔔</span>
+          {% if notifs.nb %}<span class="notif-compte">{{ notifs.nb if notifs.nb < 100 else '99+' }}</span>{% endif %}
+        </button>
+        <div class="notif-pop" role="menu">
+          <div class="notif-pop__tete">
+            <strong>الإشعارات</strong>
+            {% if notifs.nb %}
+            <form method="post" action="{{ url_for('notifications_lues') }}" style="margin:0;">
+              <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+              <input type="hidden" name="suivant" value="{{ request.path }}">
+              <button type="submit" class="notif-pop__lu">✔ تمّت القراءة</button>
+            </form>
+            {% endif %}
+          </div>
+          {% for e in notifs.liste[:6] %}
+          <div class="notif-item">
+            <div><strong>{{ e.utilisateur }}</strong>: {{ e.action }}</div>
+            <div class="notif-item__meta" dir="ltr">{{ e.horodatage }}</div>
+          </div>
+          {% else %}
+          <div class="notif-vide">لا توجد تحيينات جديدة</div>
+          {% endfor %}
+          <a href="{{ url_for('notifications_page') }}" class="notif-pop__tout">عرض كلّ الإشعارات ←</a>
+        </div>
+      </div>
+      {% endif %}
+      <!-- Theme switcher (click-based) -->
+      <div class="theme-switcher-nav" id="themeSwitcher">
+        <button class="theme-btn" onclick="toggleThemePop(event)" type="button">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          المظهر
+        </button>
+        <div class="theme-dots-pop">
+          <span class="tdot" data-t="0" style="background:linear-gradient(135deg,#1a3a6b,#2d5fa8);" title="الأزرق الرسمي" onclick="setAppTheme(0)"></span>
+          <span class="tdot" data-t="1" style="background:linear-gradient(135deg,#0d3d2d,#155c42);" title="أخضر" onclick="setAppTheme(1)"></span>
+          <span class="tdot" data-t="2" style="background:linear-gradient(135deg,#2d2d2d,#555);" title="رمادي" onclick="setAppTheme(2)"></span>
+          <span class="tdot" data-t="3" style="background:linear-gradient(135deg,#4a1a1a,#6b2828);" title="بوردو" onclick="setAppTheme(3)"></span>
+          <span class="tdot" data-t="4" style="background:linear-gradient(135deg,#2a1a50,#3d2870);" title="بنفسجي" onclick="setAppTheme(4)"></span>
+          <span class="tdot" data-t="5" style="background:linear-gradient(135deg,#0b1120,#38bdf8);" title="ليلي" onclick="setAppTheme(5)"></span>
+          <div class="police-choix" title="خطّ الواجهة">
+            <span class="police-choix__lbl">الخطّ</span>
+            <button type="button" data-police-choix="cairo" onclick="APP_PREFS.setPolice('cairo')">القاهرة</button>
+            <button type="button" data-police-choix="amiri" onclick="APP_PREFS.setPolice('amiri')">أميري</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- User + logout block -->
+      <div class="nav-user-block">
+        <a href="{{ url_for('changer_mot_de_passe') }}" class="nav-username-pill"
+           title="تغيير كلمة المرور" id="lienChangerMdp">
+          <span class="user-avatar">{{ session.get('username', 'U')[0].upper() }}</span>
+          {{ session.get('username', '') }}
+          <svg class="nav-username-pill__cle" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2m-4 4 3 3m-6-0 2 2"/></svg>
+        </a>
+        <a href="#" class="btn-logout-elegant" title="تسجيل الخروج"
+           onclick="openLogoutModal('{{ url_for('logout') }}'); return false;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          خروج
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not mode_restreint %}
+  <!-- ── Barre inférieure : زر العودة + Menu du قسم ── -->
+  {#  Le زر العودة vit ICI, hors du bloc `navmenu` : chaque قسم redéfinit sa
+      قائمة, mais AUCUN ne peut perdre — ni déplacer — le chemin du retour.
+      Un seul endroit à corriger, trois أقسام servis.                        #}
+  <div class="nav-bottom">
+    {#  Sous le زر العودة : le nom du قسم de l'accueil où l'on se trouve.
+        Chaque قسم le redéfinit par `section_titre` ; par défaut c'est la
+        porte « برامج تكوينية », celle que base.html sert directement.     #}
+    <div class="nav-home-col">
+      <a href="{{ url_for('accueil') }}" class="nav-home-btn"
+         title="العودة إلى الشاشة الرئيسية لاختيار قسم آخر">
+        <span class="nav-home-btn__ico" aria-hidden="true">🏠</span>
+        <span class="nav-home-btn__txt">العودة إلى الشاشة الرئيسية</span>
+      </a>
+      {# Une page hors قسم (تعريف بالبرنامج) vide ce bloc : elle n'appartient
+         à aucune porte de l'accueil et ne doit pas prétendre le contraire. #}
+      {% block section_bloc %}
+      <span class="nav-section-label">
+        <span aria-hidden="true">{% block section_icone %}📋{% endblock %}</span>
+        {% block section_titre %}برامج تكوينية{% endblock %}
+      </span>
+      {% endblock %}
+    </div>
+
+    <ul class="nav-menu">
+    {% block navmenu %}
+      <li class="nav-item">
+        <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+          <span class="nav-icon">📊</span> لوحة القيادة
+        </a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a href="#" class="nav-link dropdown-toggle {% if request.endpoint and 'mkow' in request.endpoint %}active{% endif %}">
+          <span class="nav-icon">👤</span> قائمة الأسماء
+        </a>
+        <ul class="dropdown-menu">
+          <li><a href="{{ url_for('ajouter_mkow') }}">➕ إضافة شخص</a></li>
+          <li><a href="{{ url_for('liste_mkowin') }}">👁 الاطلاع على بيانات شخص</a></li>
+          {% if est_admin %}<li><a href="{{ url_for('importer_mkowin') }}">📥 توريد من ملفّ إكسال</a></li>{% endif %}
+        </ul>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a href="#" class="nav-link dropdown-toggle {% if request.endpoint and 'madd' in request.endpoint %}active{% endif %}">
+          <span class="nav-icon">📚</span> مواد التكوين
+        </a>
+        <ul class="dropdown-menu">
+          <li><a href="{{ url_for('ajouter_madda') }}">➕ إضافة تكوين</a></li>
+          <li><a href="{{ url_for('liste_mawad') }}">📋 الاطلاع على معطيات تكوين</a></li>
+        </ul>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a href="#" class="nav-link dropdown-toggle {% if request.endpoint in ['nouvelle_lettre','liste_programmes','detail_lettre','formations_en_cours'] %}active{% endif %}">
+          <span class="nav-icon">📋</span> برامج التكوين
+        </a>
+        <ul class="dropdown-menu">
+          <li><a href="{{ url_for('nouvelle_lettre') }}">➕ تكوين جديد</a></li>
+          <li><a href="{{ url_for('formations_en_cours') }}">🔄 إستكمال برنامج تكوين</a></li>
+          <li style="border-top:1px solid #eee;margin:.3rem 0;"></li>
+          <li><a href="{{ url_for('liste_programmes') }}">📂 الإطلاع على البرامج</a></li>
+        </ul>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a href="#" class="nav-link dropdown-toggle {% if request.endpoint in ['nouvelle_lettre_libre','liste_lettres_libres'] %}active{% endif %}">
+          <span class="nav-icon">✉️</span> المراسلات الحرة
+        </a>
+        <ul class="dropdown-menu">
+          <li><a href="{{ url_for('nouvelle_lettre_libre') }}">📝 مراسلة حرة جديدة</a></li>
+          <li style="border-top:1px solid #eee;margin:.3rem 0;"></li>
+          <li><a href="{{ url_for('liste_lettres_libres') }}">📂 الإطلاع على المراسلات</a></li>
+        </ul>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a href="#" class="nav-link dropdown-toggle {% if request.endpoint == 'registre_lettres' %}active{% endif %}">
+          <span class="nav-icon">🗃️</span> سجل المراسلات
+        </a>
+        <ul class="dropdown-menu">
+          <li><a href="{{ url_for('registre_lettres', type_lettre='interne') }}">📥 المراسلات الداخلية</a></li>
+          <li><a href="{{ url_for('registre_lettres', type_lettre='externe') }}">📤 المراسلات الخارجية</a></li>
+        </ul>
+      </li>
+
+      {# سجلّ التدقيق : déplacé dans «الإعدادات» (base_parametres.html). #}
+    {% endblock %}
+    </ul>
+  </div>
+  {% endif %}
+
+</nav>
+
+<main class="main-content">
+  {# UX4 : en-tête visible seulement à l'impression #}
+  <div class="print-only print-entete">
+    <strong>{{ nom_centre }}</strong> — {{ self.title() }}
+    <span class="print-date" dir="ltr"></span>
+  </div>
+  {# A11 : les messages du serveur deviennent des notifications « toast »
+     (succès : disparition automatique ; erreur : reste jusqu'à fermeture). #}
+  {% include '_toasts.html' %}
+  {% include '_alerte_exercice.html' %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <span>{{ nom_centre }} &nbsp;|&nbsp; {{ now_year if now_year is defined else '' }}{% if version_label %} &nbsp;|&nbsp; {{ version_label }}{% endif %} &nbsp;|&nbsp; أنشأ من طرف حازم مسعودي</span>
+</footer>
+
+<!-- ── Modal de confirmation de déconnexion ─────────────────────────────── -->
+<div id="logoutModal" class="logout-modal-overlay" style="display:none;" onclick="closeLogoutModal(event)">
+  <div class="logout-modal-box">
+    <div class="logout-modal-icon">
+      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </div>
+    <div class="logout-modal-title">تسجيل الخروج</div>
+    <div class="logout-modal-msg">هل تريد فعلاً تسجيل الخروج من النظام؟</div>
+    <div class="logout-modal-actions">
+      <button class="logout-btn-no"  onclick="closeLogoutModal()">لا</button>
+      <button class="logout-btn-yes" id="logoutConfirmBtn" onclick="doLogout()">نعم</button>
+    </div>
+  </div>
+</div>
+
+{# `static/js/app.js` n'a jamais existé : la référence produisait un 404 à
+   chaque page. Le script utile est celui qui suit, en ligne. #}
+<script>
+let _logoutUrl = '';
+// ── Logout modal ──────────────────────────────────────────────────────────────
+function openLogoutModal(url) {
+  _logoutUrl = url;
+  const m = document.getElementById('logoutModal');
+  m.style.display = 'flex';
+  // micro-animation
+  requestAnimationFrame(() => m.querySelector('.logout-modal-box').classList.add('logout-modal-in'));
+}
+function closeLogoutModal(e) {
+  if (e && e.target !== document.getElementById('logoutModal')) return;
+  const box = document.querySelector('.logout-modal-box');
+  if (box) box.classList.remove('logout-modal-in');
+  setTimeout(() => { document.getElementById('logoutModal').style.display = 'none'; }, 180);
+}
+function doLogout() {
+  const btn = document.getElementById('logoutConfirmBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>';
+  window.location.href = _logoutUrl;
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLogoutModal({target: document.getElementById('logoutModal')}); });
+
+// ── Theme system ──────────────────────────────────────────────────────────────
+// `auto` = appliqué d'après le système (A3) : on ne l'enregistre pas comme choix.
+function setAppTheme(n, auto) {
+  n = +n;
+  document.body.dataset.theme = n;
+  if (!auto) { try { localStorage.setItem('app_theme', n); } catch (e) {} }
+  document.querySelectorAll('.tdot').forEach(d => d.classList.toggle('tdot-active', +d.dataset.t === n));
+}
+window.addEventListener('beforeprint', () => {
+  const d = new Date(), z = n => String(n).padStart(2, '0');
+  document.querySelectorAll('.print-date').forEach(e => e.textContent = z(d.getDate()) + '/' + z(d.getMonth()+1) + '/' + d.getFullYear());
+});
+(function(){
+  setAppTheme(APP_PREFS.theme(), !APP_PREFS.themeChoisi());
+  APP_PREFS.setPolice(APP_PREFS.police(), false);
+})();
+
+// ── Theme popup toggle (click-based) ─────────────────────────────────────────
+function toggleThemePop(e) {
+  e.stopPropagation();
+  document.getElementById('notifNav')?.classList.remove('open');
+  document.getElementById('themeSwitcher').classList.toggle('open');
+}
+// V3.1 — إشعارات المشرف العام
+function toggleNotifPop(e) {
+  e.stopPropagation();
+  document.getElementById('themeSwitcher')?.classList.remove('open');
+  document.getElementById('notifNav').classList.toggle('open');
+}
+
+// ── Dropdown toggle ───────────────────────────────────────────────────────────
+// ── Password eye toggle ───────────────────────────────────────────────────────
+function toggleEye(btn) {
+  // v1.7.1 : le champ est cherché dans son cadre .pwd-wrap — un message de
+  // validation inséré entre le champ et l'œil ne casse plus le bouton.
+  var cadre = btn.closest('.pwd-wrap');
+  var inp = cadre ? cadre.querySelector('input') : btn.previousElementSibling;
+  if (!inp) return;
+  var hidden = inp.type === 'password';
+  inp.type = hidden ? 'text' : 'password';
+  btn.textContent = hidden ? '🙈' : '👁️';
+}
+
+// ── Dropdown toggle ───────────────────────────────────────────────────────────
+document.querySelectorAll('.dropdown-toggle').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    const parent = this.closest('.dropdown');
+    const open = parent.classList.contains('open');
+    document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+    if (!open) parent.classList.add('open');
+  });
+});
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#themeSwitcher')) {
+    document.getElementById('themeSwitcher')?.classList.remove('open');
+  }
+  if (!e.target.closest('#notifNav')) {
+    document.getElementById('notifNav')?.classList.remove('open');
+  }
+  if (!e.target.closest('.dropdown')) {
+    document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+  }
+});
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

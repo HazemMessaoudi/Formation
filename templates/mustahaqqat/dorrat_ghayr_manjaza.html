@@ -1,0 +1,110 @@
+{% extends "base_mustahaqqat.html" %}
+{% block title %}برامج تكوين غير منجزة – المستحقّات{% endblock %}
+
+{#  الشاشة 1 : اختيار الدورة
+    Les دورات المصادق عليها نهائيًّا dont les مستحقّات restent à faire.
+    Un seul choix : une feuille de présence se pointe dorra par dorra, et
+    le صنف qui en sort ne vaut que pour celle-là. #}
+
+{% block content %}
+<div class="page-header">
+  <h1>🕓 برامج تكوين غير منجزة</h1>
+</div>
+<p style="color:var(--text-light);margin-bottom:1.3rem;line-height:1.8;">
+  الدورات التكوينية المصادق عليها نهائيًّا في «برامج التكوين» والتي لم تُنجَز مستحقّاتها المالية بعد.
+  اختر <strong>دورة واحدة</strong> ثمّ اضغط «اختيار» للمرور إلى ورقة الحضور.
+</p>
+
+{% if dorrat %}
+<form id="formChoix" onsubmit="return ouvrirDorra(event);">
+  <div class="card">
+    <div class="table-wrapper">
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th style="width:56px;">اختيار</th>
+            <th>عنوان الدورة</th>
+            <th>تاريخ الدورة</th>
+            <th>المكوّن</th>
+            <th>مكان التكوين</th>
+            <th>المشاركون</th>
+            <th>مرجع المراسلة</th>
+            <th>الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in dorrat %}
+          <tr class="ligne-dorra" onclick="cocher({{ d.id }})">
+            <td style="text-align:center;">
+              <input type="radio" name="formation_id" value="{{ d.id }}"
+                     id="dorra-{{ d.id }}" style="width:19px;height:19px;cursor:pointer;">
+            </td>
+            <td><strong>{{ d.titre }}</strong></td>
+            <td>{{ d|dates_dorra }}</td>
+            <td>{{ d.nom_formateur or '—' }}</td>
+            <td>{{ d.lieu_formation or '—' }}</td>
+            <td style="text-align:center;">{{ d.nb_participants }}</td>
+            <td style="white-space:nowrap;">{{ d.lettre_ref or '—' }}</td>
+            <td>
+              {% if d.etat == 'classe' and d.mu_pret_at %}
+                <span class="badge-pret" title="أُعلم المشرف العام بتاريخ {{ d.mu_pret_at[:16] }}">📨 جاهزة للمصادقة</span>
+              {% elif d.etat == 'classe' %}
+                <span style="color:#2f7a4a;font-weight:700;">الصنف {{ d.classe }} محدَّد</span>
+              {% elif d.etat == 'hodour' %}
+                <span style="color:#b07a10;font-weight:700;">تأشير الحضور جارٍ</span>
+              {% else %}
+                <span style="color:var(--text-light);">لم تنطلق</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="actions-bar" style="margin-top:1.1rem;">
+      <button type="submit" class="btn btn-generate">✔ اختيار</button>
+      <span id="msgChoix" style="color:#cc2200;font-size:.9rem;align-self:center;"></span>
+    </div>
+  </div>
+</form>
+
+{% else %}
+<div class="empty-msg">
+  🎉 لا توجد دورات في انتظار إنجاز مستحقّاتها.<br>
+  كلّ الدورات المسجَّلة في المنظومة أُنجزت مستحقّاتها.
+  <a href="{{ url_for('mustahaqqat_manjaza') }}">عرض البرامج المنجزة</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .ligne-dorra { cursor:pointer; }
+  .ligne-dorra:hover { background:var(--bg); }
+  .ligne-dorra.choisie { background:rgba(200,168,75,.16); }
+</style>
+<script>
+function cocher(id) {
+  const r = document.getElementById('dorra-' + id);
+  if (!r) return;
+  r.checked = true;
+  document.querySelectorAll('.ligne-dorra').forEach(function (tr) {
+    tr.classList.remove('choisie');
+  });
+  r.closest('tr').classList.add('choisie');
+  document.getElementById('msgChoix').textContent = '';
+}
+
+function ouvrirDorra(e) {
+  e.preventDefault();
+  const choisi = document.querySelector('input[name="formation_id"]:checked');
+  if (!choisi) {
+    document.getElementById('msgChoix').textContent = 'اختر دورة واحدة أوّلا.';
+    return false;
+  }
+  location.href = '/mustahaqqat/dorra/' + choisi.value + '/hodour';
+  return false;
+}
+</script>
+{% endblock %}

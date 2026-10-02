@@ -1,0 +1,106 @@
+{% extends "base_statistiques.html" %}
+{% from "_graphiques.html" import colonnes %}
+{% block title %}التقرير السنوي {{ r.annee }}{% endblock %}
+
+{% block content %}
+{% set t = r.totaux %}
+<div class="page-header rap-entete">
+  <h1>📑 التقرير السنوي <span dir="ltr">{{ r.annee }}</span></h1>
+  <div class="rap-outils no-print">
+    <form method="get" style="margin:0;">
+      <select name="annee" onchange="this.form.submit()" aria-label="السنة" class="rap-annee">
+        {% for a in annees %}<option value="{{ a }}" {% if a == r.annee %}selected{% endif %}>سنة {{ a }}</option>{% endfor %}
+      </select>
+    </form>
+    <a href="{{ url_for('rapports') }}" class="btn btn-cancel">📊 التّقارير</a>
+    <button type="button" class="btn btn-cancel" onclick="window.print()">🖨 طباعة</button>
+    <a href="{{ url_for('exporter_rapport_annuel', annee=r.annee) }}" class="btn btn-save" data-sans-apercu>⬇ Excel</a>
+  </div>
+</div>
+<p class="rap-note">
+  تُحتسب الدورات حسب شهر وسنة برنامجها. الساعات والمبالغ لا تشمل إلّا الدورات التي أُنجزت مستحقّاتها وصودق عليها.
+</p>
+
+{# ── Chiffres clés ── #}
+<div class="rap-tuiles">
+  <div class="rap-tuile"><span class="rap-tuile__val">{{ t.programmes }}</span><span class="rap-tuile__lbl">برامج التكوين<small>منها {{ t.programmes_confirmes }} مؤكَّدة</small></span></div>
+  <div class="rap-tuile"><span class="rap-tuile__val">{{ t.dorrat }}</span><span class="rap-tuile__lbl">دورة تكوينية<small>{{ t.finalisees }} مسجّلة نهائيًّا</small></span></div>
+  <div class="rap-tuile"><span class="rap-tuile__val">{{ t.participations }}</span><span class="rap-tuile__lbl">مشاركة<small>{{ t.participants_uniques }} مشارك دون تكرار · معدّل {{ t.moyenne_participants }} في الدورة</small></span></div>
+  <div class="rap-tuile"><span class="rap-tuile__val">{{ t.formateurs }}</span><span class="rap-tuile__lbl">مكوّن<small>أمّنوا دورات هذه السنة</small></span></div>
+  <div class="rap-tuile"><span class="rap-tuile__val">{{ t.heures }}</span><span class="rap-tuile__lbl">ساعة تكوين مدفوعة<small>{{ t.dorrat_payees }} دورة أُنجزت مستحقّاتها</small></span></div>
+  <div class="rap-tuile"><span class="rap-tuile__val" dir="ltr">{{ t.montant|dinars }}</span><span class="rap-tuile__lbl">دينار جملة المستحقّات<small>المصادق عليها</small></span></div>
+</div>
+
+<div class="rap-graphes">
+  <section class="card tb-carte">
+    <div class="tb-carte__tete"><h2>الدورات حسب الشهر</h2></div>
+    {{ colonnes(g_dorrat, 'عدد الدورات حسب الشهر لسنة ' ~ r.annee) }}
+  </section>
+  <section class="card tb-carte">
+    <div class="tb-carte__tete"><h2>المستحقّات المصادق عليها حسب الشهر (د)</h2></div>
+    {{ colonnes(g_montant, 'المستحقّات حسب الشهر لسنة ' ~ r.annee) }}
+  </section>
+</div>
+
+<section class="card rap-section">
+  <h2>🗓 النشاط حسب الشهر</h2>
+  <table class="list-table rap-table">
+    <thead><tr><th>الشهر</th><th>الدورات</th><th>المسجّلة نهائيًّا</th><th>المشاركون</th><th>الساعات المدفوعة</th><th>المستحقّات (د)</th></tr></thead>
+    <tbody>
+      {% for m in r.par_mois %}
+      <tr class="{{ 'rap-vide' if not m.dorrat }}"><td>{{ m.mois }}</td><td>{{ m.dorrat }}</td><td>{{ m.finalisees }}</td><td>{{ m.participants }}</td><td>{{ m.heures }}</td><td dir="ltr">{{ m.montant|dinars }}</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr><th>المجموع</th><th>{{ t.dorrat }}</th><th>{{ t.finalisees }}</th><th>{{ t.participations }}</th><th>{{ t.heures }}</th><th dir="ltr">{{ t.montant|dinars }}</th></tr></tfoot>
+  </table>
+</section>
+
+<div class="tb-grille">
+  <section class="card rap-section">
+    <h2>👨‍🏫 حسب المكوّن</h2>
+    {% if r.par_formateur %}
+    <table class="list-table rap-table table-triable">
+      <thead><tr><th>المكوّن</th><th>الدورات</th><th>الساعات</th><th>المستحقّات (د)</th></tr></thead>
+      <tbody>
+        {% for f in r.par_formateur %}
+        <tr><td><strong>{{ f.nom }}</strong>{% if f.grade %}<small class="rap-sous"> — {{ f.grade }}</small>{% endif %}</td>
+            <td>{{ f.dorrat }}</td><td>{{ f.heures or 0 }}</td><td dir="ltr">{{ f.montant|dinars }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="empty-msg">لا توجد دورات في هذه السنة.</div>{% endif %}
+  </section>
+  {# v1.7.1 : section « المشاركون حسب الجهة المرجعيّة » retirée #}
+</div>
+
+{# v1.6.1 — المشاركون حسب الجنس #}
+<section class="card rap-section" id="rapSexe">
+  <h2>👤 المشاركون حسب الجنس</h2>
+  {% if t.participations %}
+  <table class="list-table rap-table">
+    <thead><tr><th>الجنس</th><th>المشاركات</th><th>المشاركون دون تكرار</th><th>النسبة</th><th class="rap-barre-col"></th></tr></thead>
+    <tbody>
+      {% for x in r.par_sexe %}
+      <tr><td><strong>{{ x.sexe }}</strong></td><td>{{ x.participations }}</td><td>{{ x.uniques }}</td>
+          <td dir="ltr">{{ x.part }}%</td>
+          <td class="rap-barre-col"><span class="rap-barre rap-barre--{{ loop.index }}" style="width:{{ x.part }}%"></span></td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot><tr><th>المجموع</th><th>{{ t.participations }}</th><th>{{ r.par_sexe|sum(attribute='uniques') }}</th><th dir="ltr">100%</th><th class="rap-barre-col"></th></tr></tfoot>
+  </table>
+  <p class="rap-note" style="margin-top:.5rem;">«غير محدّد» : خانة الجنس لم تُعمَّر للمشارك.</p>
+  {% else %}<div class="empty-msg">لا يوجد مشاركون في هذه السنة.</div>{% endif %}
+</section>
+
+<section class="card rap-section">
+  <h2>📚 حسب مادّة التكوين</h2>
+  {% if r.par_madda %}
+  <table class="list-table rap-table table-triable">
+    <thead><tr><th>مادّة التكوين</th><th>الدورات</th><th>المشاركون</th></tr></thead>
+    <tbody>{% for m in r.par_madda %}<tr><td>{{ m.titre }}</td><td>{{ m.dorrat }}</td><td>{{ m.participants or 0 }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty-msg">لا توجد دورات في هذه السنة.</div>{% endif %}
+</section>
+
+<p class="rap-note">المراسلات الحرّة: {{ t.libres }} · أعداد السجلّ الداخلي: {{ t.registre_interne }} · أعداد السجلّ الخارجي: {{ t.registre_externe }}</p>
+{% endblock %}

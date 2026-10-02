@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}بطاقة بيداغوجية – {{ madda.titre }}{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+  <h1>📋 البطاقة البيداغوجية</h1>
+  <div style="display:flex;gap:.7rem;">
+    <a href="{{ url_for('modifier_madda', madda_id=madda.id) }}" class="btn btn-save">✏️ تعديل</a>
+    <a href="{{ url_for('liste_mawad') }}" class="btn btn-cancel">← القائمة</a>
+  </div>
+</div>
+
+<div class="card fiche-pedagogique">
+  <div class="fiche-pg-header">
+    <div class="fiche-pg-title">{{ madda.titre }}</div>
+    {% if madda.type_formation %}
+    <div class="fiche-pg-badge">{{ madda.type_formation }}</div>
+    {% endif %}
+  </div>
+
+  {% macro section(icon, title, content) %}
+  {% if content %}
+  <div class="fiche-section">
+    <div class="fiche-section-title">{{ icon }} {{ title }}</div>
+    <div class="fiche-section-body" style="white-space:pre-wrap;">{{ content }}</div>
+  </div>
+  {% endif %}
+  {% endmacro %}
+
+  {{ section('📐', 'محاور الدورة', madda.mahawer) }}
+  {{ section('🎯', 'أهداف الدورة', madda.objectifs) }}
+  {{ section('🧑‍🏫', 'الطرق البيداغوجية', madda.methodes_pedagogiques) }}
+  {{ section('🖥️', 'المعينات البيداغوجية', madda.moyens_pedagogiques) }}
+  {{ section('🏗️', 'الإعداد المادي', madda.preparation_materielle) }}
+  {{ section('🔧', 'التجهيزات والمعدات الخصوصية', madda.equipements) }}
+
+  <div class="fiche-row" style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.8rem;">
+    <span class="fiche-lbl">تاريخ الإضافة</span>
+    <span class="fiche-val" dir="ltr">{{ madda.date_ajout[:10] if madda.date_ajout else '—' }}</span>
+  </div>
+</div>
+{% endblock %}

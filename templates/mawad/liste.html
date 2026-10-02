@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}قائمة مواد التكوين{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+  <h1>📚 مواد التكوين</h1>
+  <a href="{{ url_for('ajouter_madda') }}" class="btn btn-add">➕ إضافة تكوين</a>
+</div>
+
+{% if mawad %}
+<!-- ─── Barre de recherche ─────────────────────────────────────────────────── -->
+<div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem;">
+  <select id="rechColonne" onchange="filtrerListe()" data-memoriser="colonne"
+          style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;
+                 background:var(--card-bg);color:var(--text);font-size:.9rem;cursor:pointer;
+                 direction:rtl;">
+    <option value="all">🔍 بحث في عناوين التكوين</option>
+    <option value="2">عنوان التكوين</option>
+  </select>
+  <input type="text" id="rechInput" oninput="filtrerListe()" data-memoriser="texte" placeholder="اكتب للبحث..."
+         style="flex:1;min-width:200px;padding:.5rem .85rem;border:1.5px solid var(--border);
+                border-radius:8px;background:var(--card-bg);color:var(--text);font-size:.92rem;
+                text-align:right;direction:rtl;">
+  <span id="rechCount" style="color:var(--text-muted);font-size:.85rem;white-space:nowrap;"></span>
+</div>
+
+<form id="formLot" method="post" action="{{ url_for('supprimer_mawad_lot') }}">
+  {% if est_admin %}
+  <div id="barreLot" style="display:none;align-items:center;gap:1rem;margin-bottom:.8rem;
+              background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:.7rem 1rem;">
+    <span style="font-weight:700;color:#b91c1c;">
+      المحدَّد: <span id="nbSel">0</span> مادّة
+    </span>
+    <button type="button" class="btn" style="background:#ef4444;color:#fff;border-color:#ef4444;"
+            onclick="fsakhSelection()">🗑 فسخ كافة مواد التكوين المحدَّدة</button>
+    <button type="button" class="btn btn-cancel" onclick="toutDeselectionner()">إلغاء التحديد</button>
+  </div>
+  {% endif %}
+
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table class="list-table table-triable" data-renumeroter>
+      <thead>
+        <tr>
+          {% if est_admin %}
+          <th style="width:42px;text-align:center;">
+            <input type="checkbox" id="chkTout" onchange="basculerTout(this)"
+                   title="تحديد الكلّ" style="width:17px;height:17px;cursor:pointer;">
+          </th>
+          {% endif %}
+          <th>#</th>
+          <th>عنوان التكوين</th>
+          <th data-tri="non">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in mawad %}
+        <tr>
+          {% if est_admin %}
+          <td style="text-align:center;">
+            <input type="checkbox" name="ids" value="{{ m.id }}" class="chk-ligne" data-liees="{{ liees.get(m.id, 0) }}"
+                   onchange="majSelection()" style="width:17px;height:17px;cursor:pointer;">
+          </td>
+          {% endif %}
+          <td class="num-cell">{{ loop.index }}</td>
+          <td><strong>{{ m.titre }}</strong></td>
+          <td class="actions-td">
+            <a href="{{ url_for('fiche_madda', madda_id=m.id) }}" class="btn-action btn-view" title="عرض">👁</a>
+            <a href="{{ url_for('modifier_madda', madda_id=m.id) }}" class="btn-action btn-edit" title="تعديل">✏️</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</form>
+
+{% else %}
+<div class="empty-msg">لا توجد مواد تكوين مسجَّلة بعد. <a href="{{ url_for('ajouter_madda') }}">أضف أول مادة</a></div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+/* Sans la colonne des cases à cocher (réservée au مشرف), les indices
+   des colonnes du filtre reculent d'un rang. */
+const DECALAGE_COL = {{ 0 if est_admin else 1 }};
+
+{% if est_admin %}
+/* ─── List Logic ───────────────────────────────────────────────────────────── */
+function lignesCochees() {
+  return Array.from(document.querySelectorAll('.chk-ligne')).filter(c => c.checked);
+}
+
+function majSelection() {
+  const toutes = document.querySelectorAll('.chk-ligne');
+  const sel    = lignesCochees();
+  document.getElementById('nbSel').textContent = sel.length;
+  document.getElementById('barreLot').style.display = sel.length ? 'flex' : 'none';
+  const chkTout = document.getElementById('chkTout');
+  chkTout.checked       = sel.length > 0 && sel.length === toutes.length;
+  chkTout.indeterminate = sel.length > 0 && sel.length < toutes.length;
+}
+
+function basculerTout(src) {
+  document.querySelectorAll('.chk-ligne').forEach(c => { c.checked = src.checked; });
+  majSelection();
+}
+
+function toutDeselectionner() {
+  document.querySelectorAll('.chk-ligne').forEach(c => { c.checked = false; });
+  document.getElementById('chkTout').checked = false;
+  majSelection();
+}
+
+function fsakhSelection() {
+  const n = lignesCochees().length;
+  if (!n) { showAlertModal('لم يتمّ اختيار أيّ مادّة.'); return; }
+  const liees = lignesCochees().reduce((t, c) => t + (parseInt(c.dataset.liees, 10) || 0), 0);
+  const avert = liees
+    ? `\n\n⚠ تنبيه : العناصر المحدَّدة مرتبطة بـ ${liees} دورة مسجّلة ؛ ستبقى الدورات لكن دون ربطها بالبطاقة.`
+    : '';
+  showConfirmModal(
+    `هل أنت متأكّد من فسخ ${n} مادّة تكوين نهائيًّا؟${avert}\n\nلا يمكن التراجع عن هذه العمليّة.`,
+    () => { document.getElementById('formLot').submit(); }
+  );
+}
+
+{% endif %}
+
+/* ─── Recherche / filtrage ─────────────────────────────────────────────────── */
+function _norm(s) {
+  return (s || '').toString().trim().toLowerCase()
+    .replace(/[ً-ْٰـ]/g, '')  // tashkil + kashida
+    .replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
+}
+function filtrerListe() {
+  const q   = _norm(document.getElementById('rechInput').value);
+  const col = document.getElementById('rechColonne').value;
+  const rows = document.querySelectorAll('.list-table tbody tr');
+  let visibles = 0;
+  rows.forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    let texte;
+    if (col === 'all') {
+      texte = _norm(tr.textContent);
+    } else {
+      const c = cells[parseInt(col, 10) - DECALAGE_COL];
+      texte = _norm(c ? c.textContent : '');
+    }
+    const match = !q || texte.includes(q);
+    tr.style.display = match ? '' : 'none';
+    if (match) {
+      visibles++;
+      const nc = tr.querySelector('.num-cell');
+      if (nc) nc.textContent = visibles;
+    }
+  });
+  const cnt = document.getElementById('rechCount');
+  if (cnt) cnt.textContent = q ? `${visibles} نتيجة` : '';
+  majEtatVide(document.querySelector('.list-table'), visibles, document.getElementById('rechInput').value.trim());
+}
+</script>
+{% endblock %}

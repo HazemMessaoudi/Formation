@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}توريد من ملفّ إكسال{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom:.4rem;">
+  <h1>📥 توريد المكوّنين من ملفّ إكسال</h1>
+</div>
+<p style="color:var(--text-muted);margin-bottom:1.3rem;line-height:1.7;">
+  تُضاف الأسماء إلى <strong>قائمة المكوّنين</strong>، وهي القائمة الدّائمة الّتي
+  يُختار منها المكوّن والمشارك في كلّ برنامج.
+  <strong>المعرّف الوحيد هو المفتاح</strong>: سطران يحملانه هما شخص واحد كُتب مرّتين،
+  فلا يُقبل إلّا مرّة. وما هو مسجّل في القائمة لا يُعاد كتابته من الملفّ أبدا.
+</p>
+
+<!-- ── الملفّ ──────────────────────────────────────────────────────────────── -->
+<div class="card" style="padding:1.2rem 1.3rem;margin-bottom:1.4rem;">
+  <h2 style="font-size:1.05rem;margin:0 0 1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem;">
+    📄 اختيار الملفّ
+  </h2>
+
+  <form method="POST" enctype="multipart/form-data" autocomplete="off">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+
+    <div class="form-group">
+      <label for="fichier">ملفّ إكسال (.xlsx أو .xls)</label>
+      <input type="file" id="fichier" name="fichier" class="form-control"
+             accept=".xlsx,.xls" required>
+      <small style="color:var(--text-muted);">
+        لا حاجة إلى ترتيب الملفّ: يُبحث عن سطر العناوين في أوّل
+        <span dir="ltr">{{ fenetre }}</span> أسطر، وتُهمَل الأعمدة غير المعروفة
+        دون أن تُعطّل التّوريد. أقصى عدد أسطر مقبول:
+        <span dir="ltr">{{ max_lignes }}</span>.
+      </small>
+    </div>
+
+    {# v1.7.1 — les options lues par la route n'étaient pas dans le formulaire :
+       « استكمال » était donc impossible (fiches importées sans مكان العمل). #}
+    <div class="options-import">
+      <label><input type="checkbox" name="completer" value="1"
+             {% if completer %}checked{% endif %}>
+        استكمال الخانات الفارغة للأشخاص المسجّلين مسبقًا (مثل مكان العمل) — دون المسّ بما هو معمَّر</label>
+      <label><input type="checkbox" name="essai" value="1" {% if essai %}checked{% endif %}>
+        تجربة دون حفظ (عرض التقرير فقط)</label>
+      <label><input type="checkbox" name="sans_identifiant" value="1" {% if sans_id %}checked{% endif %}>
+        قبول الأسطر التي لا تحمل معرّفًا وحيدًا (يُقارن حينها بالاسم واللقب)</label>
+    </div>
+
+    <div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;margin-top:1rem;">
+      <button type="submit" class="btn btn-save">قراءة الملفّ</button>
+      <a href="{{ url_for('liste_mkowin') }}" class="btn btn-cancel">رجوع إلى القائمة</a>
+    </div>
+  </form>
+</div>
+
+{% if rapport %}
+<!-- ── التّقرير ────────────────────────────────────────────────────────────── -->
+<div class="card" style="padding:1.2rem 1.3rem;margin-bottom:1.4rem;
+     border-right:4px solid {% if rapport.essai %}#f59e0b{% else %}#22c55e{% endif %};">
+  <h2 style="font-size:1.05rem;margin:0 0 .9rem;border-bottom:1px solid var(--border);padding-bottom:.5rem;">
+    {% if rapport.essai %}🔍 تقرير التّجربة — لم يُكتب شيء{% else %}✅ تقرير التّوريد{% endif %}
+  </h2>
+
+  <p style="color:var(--text-muted);margin:0 0 1rem;line-height:1.8;">
+    الملفّ: <strong>{{ rapport.fichier }}</strong> —
+    الورقة: <strong>{{ rapport.feuille }}</strong> —
+    سطر العناوين: <strong dir="ltr">{{ rapport.ligne_entete }}</strong> —
+    الأسطر المقروءة: <strong dir="ltr">{{ rapport.total_lignes }}</strong>
+    {% if rapport.colonnes_ignorees %}
+    <br>أعمدة أُهملت لأنّها غير معروفة:
+    <em>{{ rapport.colonnes_ignorees | join('، ') }}</em>
+    {% endif %}
+  </p>
+
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.5rem;">
+    <div style="flex:1;min-width:150px;background:var(--bg);border-radius:8px;padding:.8rem 1rem;text-align:center;">
+      <div style="font-size:1.6rem;font-weight:700;color:#16a34a;" dir="ltr">
+        {% if rapport.essai %}{{ rapport.a_ajouter|length }}{% else %}{{ rapport.ajoutes }}{% endif %}
+      </div>
+      <div style="font-size:.85rem;color:var(--text-muted);">
+        {% if rapport.essai %}يُضاف{% else %}أُضيف{% endif %}
+      </div>
+    </div>
+    <div style="flex:1;min-width:150px;background:var(--bg);border-radius:8px;padding:.8rem 1rem;text-align:center;">
+      <div style="font-size:1.6rem;font-weight:700;color:#2563eb;" dir="ltr">
+        {% if rapport.essai %}{{ rapport.a_completer|length }}{% else %}{{ rapport.completes }}{% endif %}
+      </div>
+      <div style="font-size:.85rem;color:var(--text-muted);">
+        {% if rapport.essai %}يُستكمل{% else %}استُكمل{% endif %}
+      </div>
+    </div>
+    <div style="flex:1;min-width:150px;background:var(--bg);border-radius:8px;padding:.8rem 1rem;text-align:center;">
+      <div style="font-size:1.6rem;font-weight:700;color:#dc2626;" dir="ltr">
+        {{ rapport.rejetes|length + rapport.echecs|length }}
+      </div>
+      <div style="font-size:.85rem;color:var(--text-muted);">لم يُقبل</div>
+    </div>
+  </div>
+
+  {% if rapport.essai and (rapport.a_ajouter or rapport.a_completer) %}
+  <p style="margin:.8rem 0 0;padding:.7rem .9rem;background:#fffbeb;border-radius:8px;
+            color:#92400e;line-height:1.7;">
+    هذه تجربة: القائمة لم تتغيّر. إن وافقك التّقرير، ارفع علامة
+    «تجربة دون حفظ» أعلاه وأعد اختيار الملفّ.
+  </p>
+  {% endif %}
+</div>
+
+{% if rapport.essai and rapport.a_ajouter %}
+<div class="card" style="padding:1.2rem 1.3rem;margin-bottom:1.1rem;">
+  <h2 style="font-size:1.05rem;margin:0 0 .9rem;border-bottom:1px solid var(--border);padding-bottom:.5rem;">
+    ➕ ما سيُضاف <span class="badge" style="font-weight:normal;">{{ rapport.a_ajouter|length }}</span>
+  </h2>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width:4rem;">السّطر</th>
+          <th>اللّقب والاسم</th>
+          <th style="width:9rem;">المعرّف الوحيد</th>
+          <th>مكان العمل</th>
+          <th>الجهة المرجعيّة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for numero, f in rapport.a_ajouter %}
+        <tr>
+          <td dir="ltr">{{ numero }}</td>
+          <td>{{ (f.nom ~ ' ' ~ (f.prenom or '')) | trim }}</td>
+          <td dir="ltr">{{ f.identifiant_unique or '—' }}</td>
+          <td>{{ f.lieu_travail or '—' }}</td>
+          <td>{{ f.jiha_marjiiya or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if rapport.rejetes or rapport.echecs %}
+<div class="card" style="padding:1.2rem 1.3rem;margin-bottom:1.1rem;">
+  <h2 style="font-size:1.05rem;margin:0 0 .5rem;border-bottom:1px solid var(--border);padding-bottom:.5rem;">
+    ⚠️ ما لم يُقبل
+    <span class="badge" style="font-weight:normal;">{{ rapport.rejetes|length + rapport.echecs|length }}</span>
+  </h2>
+  <p style="color:var(--text-muted);margin:0 0 .9rem;line-height:1.7;">
+    كلّ سطر هنا معه سببه. أغلب الأسباب تُصلَح في الملفّ نفسه ثمّ يُعاد التّوريد:
+    ما قُبل لن يُقبل مرّتين.
+  </p>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width:4rem;">السّطر</th>
+          <th>اللّقب والاسم</th>
+          <th style="width:9rem;">المعرّف الوحيد</th>
+          <th>السّبب</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rapport.rejetes + rapport.echecs %}
+        <tr>
+          <td dir="ltr">{{ r.ligne }}</td>
+          <td>{{ r.nom or '—' }}</td>
+          <td dir="ltr">{{ r.identifiant or '—' }}</td>
+          <td style="color:#b45309;">{{ r.motif }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- ── الأعمدة المعروفة ───────────────────────────────────────────────────── -->
+<div class="card" style="padding:1.2rem 1.3rem;">
+  <h2 style="font-size:1.05rem;margin:0 0 .9rem;border-bottom:1px solid var(--border);padding-bottom:.5rem;">
+    📋 العناوين الّتي تُقرأ
+  </h2>
+  <p style="color:var(--text-muted);margin:0 0 .9rem;line-height:1.7;">
+    يكفي أن يحمل عمود أحد هذه العناوين ليُقرأ. الفروق في الهمزة والشّدّة
+    والنّقطتين لا تُعطّل التّعرّف. وإن كان الاسم واللّقب في عمود واحد
+    («اللّقب والاسم») فهو يُحفظ كما هو دون تقسيم.
+  </p>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr><th style="width:12rem;">الخانة</th><th>العناوين المقبولة</th></tr>
+      </thead>
+      <tbody>
+        {% for champ, libelles in colonnes %}
+        <tr>
+          <td><strong>{{ libelles[0] }}</strong></td>
+          <td style="color:var(--text-muted);">{{ libelles | join('، ') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

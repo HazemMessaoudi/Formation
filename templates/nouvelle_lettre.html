@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+{% block title %}{% if lettre_edit %}تعديل برنامج التكوين{% else %}مراسلة جديدة – التكوين{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+.ac-wrap { position:relative; }
+.f-nom { width:100%; box-sizing:border-box; }
+/* ac-list est positionné en fixed via JS pour échapper aux overflow:hidden parents */
+.ac-list {
+  position:fixed; z-index:99999;
+  background:var(--card-bg,#fff); border:1.5px solid var(--primary,#1a3a6b);
+  border-radius:6px; max-height:220px; overflow-y:auto;
+  box-shadow:0 6px 20px rgba(0,0,0,.18);
+}
+.ac-item {
+  padding:.45rem .75rem; cursor:pointer; font-size:.88rem;
+  border-bottom:1px solid var(--border,#e2e8f0); direction:rtl; text-align:right;
+  display:flex; flex-direction:column; gap:.1rem;
+}
+.ac-item:last-child { border-bottom:none; }
+.ac-item:hover, .ac-item.ac-active { background:var(--primary,#1a3a6b); color:#fff; }
+.ac-item .ac-name { font-weight:600; }
+.ac-item .ac-grade { font-size:.78rem; opacity:.75; }
+.ac-item.ac-new { color:var(--primary,#1a3a6b); font-weight:700; }
+.ac-item.ac-new:hover { background:var(--primary,#1a3a6b); color:#fff; }
+/* V2 — تاريخ التكوين : « من … إلى … » (دورة متعدّدة الأيّام) */
+.dates-plage { display:flex; flex-direction:column; gap:.25rem; }
+.dates-plage .dp-l { display:flex; align-items:center; gap:.3rem; margin:0; font-weight:400; }
+.dates-plage .dp-l span { min-width:1.8em; font-size:.8rem; color:var(--text-muted); }
+.dates-plage .dp-info { color:var(--primary-txt, var(--primary)); font-size:.75rem; font-weight:600; }
+.dates-plage .dp-info:empty { display:none; }
+/* V3 — تصنيف الدّورة (إحصائيّات وتقارير فقط) */
+.td-classif { min-width:122px; max-width:140px; }
+/* colonne التصنيف : page un peu plus large pour éviter le défilement horizontal du tableau */
+.main-content { max-width:1220px; }
+.cls-grp { display:flex; flex-wrap:wrap; gap:.15rem; margin-bottom:.2rem; align-items:center; }
+.cls-grp:last-child { margin-bottom:0; }
+.cls-pill { position:relative; margin:0; cursor:pointer; font-weight:400; }
+/* radio masqué mais accessible : confiné dans la pastille (sinon débordement horizontal RTL) */
+.cls-pill input { position:absolute; inset:0; width:100%; height:100%; min-width:0; margin:0; padding:0; opacity:0; pointer-events:none; }
+.cls-pill span { display:inline-block; padding:.05rem .35rem; border:1px solid var(--border);
+                 border-radius:999px; font-size:.7rem; color:var(--text-muted); background:var(--bg); }
+.cls-pill input:checked + span { background:var(--primary,#1a3a6b); border-color:var(--primary,#1a3a6b);
+                                 color:#fff; font-weight:700; }
+.cls-pill input:focus-visible + span { outline:2px solid var(--primary,#1a3a6b); outline-offset:1px; }
+.cls-pill input:disabled + span { opacity:.6; cursor:default; }
+.cls-chk { display:flex; align-items:center; gap:.25rem; margin:0; font-size:.76rem; font-weight:400; cursor:pointer; }
+.cls-chk input { margin:0; }
+.cls-opt select.f-coop-type { font-size:.74rem; padding:.05rem .3rem; height:auto; min-width:0; width:auto; }
+/* V2 — برنامج jour par jour */
+.jours-progress { display:flex; gap:.4rem; flex-wrap:wrap; margin:.2rem 0 .9rem; }
+.jp-etape { flex:1; min-width:110px; text-align:center; padding:.4rem .5rem; border-radius:8px;
+            font-size:.82rem; font-weight:700; border:1.5px solid var(--border);
+            color:var(--text-muted); background:var(--bg); }
+.jp-etape.fait { background:#dcfce7; border-color:#16a34a; color:#166534; }
+.jp-etape.actif { background:var(--primary,#1a3a6b); border-color:var(--primary,#1a3a6b); color:#fff; }
+.jour-carte { border:1.5px solid var(--border); border-radius:10px; margin-bottom:.9rem; overflow:hidden; }
+.jour-carte.fait { border-color:#16a34a; }
+.jour-carte.attente { opacity:.55; }
+.jour-tete { display:flex; align-items:center; justify-content:space-between; gap:.6rem; flex-wrap:wrap;
+             padding:.55rem .9rem; background:var(--bg); font-weight:700; }
+.jour-carte.fait .jour-tete { background:#dcfce7; color:#166534; }
+.jour-carte.actif .jour-tete { background:#0369a1; color:#fff; }
+.jour-corps { padding:.7rem .9rem; }
+.jour-periode { display:flex; gap:.9rem; align-items:center; margin-bottom:.6rem; font-size:.9rem; }
+.jour-lecture td { padding:.3rem .5rem; border:1px solid var(--border); font-size:.86rem; }
+</style>
+<div class="page-header">
+  <h1>{% if lettre_edit %}✏️ تعديل برنامج التكوين{% else %}إعداد برنامج التكوين{% endif %}</h1>
+</div>
+
+<form id="formLettre" autocomplete="off">
+
+  <!-- ─── الخطوة 1 : معلومات المراسلة ───────────────────────────────────── -->
+  <div style="margin:0 0 .5rem; padding:.5rem .9rem;
+              border-right:4px solid var(--primary,#1a3a6b);
+              background:linear-gradient(to left, var(--bg,#f1f5f9) 0%, transparent 100%);
+              border-radius:0 6px 6px 0; direction:rtl;">
+    <span style="font-weight:700; font-size:1.05rem; color:var(--primary,#1a3a6b);">
+      الخطوة 1 : معلومات المراسلة
+    </span>
+  </div>
+  <div class="card">
+    <div class="card-title">معلومات المراسلة</div>
+    <div class="form-grid-3">
+
+      <div class="form-group">
+        <label>نوع المراسلة</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="type" value="interne"
+              {% if lettre_edit %}{% if lettre_edit.type=='interne' %}checked{% endif %}
+              {% elif request.args.get('type','interne')=='interne' %}checked{% endif %}>
+            <span>داخلية</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="type" value="externe"
+              {% if lettre_edit %}{% if lettre_edit.type=='externe' %}checked{% endif %}
+              {% elif request.args.get('type')=='externe' %}checked{% endif %}>
+            <span>خارجية</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="mois">شهر التكوين <span class="req">*</span></label>
+        <select id="mois" name="mois" required onchange="updateDateLimits()">
+          <option value="">— اختر الشهر —</option>
+          {% set mois_list = ['جانفي','فيفري','مارس','أفريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'] %}
+          {% for m in mois_list %}
+          <option {% if lettre_edit and lettre_edit.mois == m %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="annee">السنة <span class="req">*</span></label>
+        <input type="number" id="annee" name="annee"
+               value="{{ lettre_edit.annee if lettre_edit else now_year }}"
+               min="2020" max="2099" required onchange="updateDateLimits()">
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title card-title-flex">
+      <span>الدورات التكوينية</span>
+      <button type="button" class="btn btn-add" onclick="ajouterLigne()">+ إضافة دورة</button>
+    </div>
+
+    <div class="table-wrapper">
+      <table id="tableFormations" class="formations-table">
+        <thead>
+          <tr>
+            <th style="width:38px">ع/ر</th>
+            <th style="min-width:160px">الدورة التكوينية</th>
+            <th style="min-width:100px">الرتبة</th>
+            <th style="min-width:130px">المكون</th>
+            <th style="min-width:120px">مكان العمل</th>
+            <th style="min-width:170px">تاريخ التكوين</th>
+            <th style="min-width:90px">الفترة</th>
+            <th style="min-width:130px">المكان</th>
+            <th style="min-width:122px" title="للإحصائيّات والتقارير فقط — لا يؤثّر على مراحل البرنامج">التصنيف</th>
+            <th style="width:36px"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div id="emptyMsg" class="empty-msg">
+      لا توجد دورات بعد – انقر على "+ إضافة دورة" للإضافة
+    </div>
+  </div>
+
+  <!-- ─── أزرار العمل ──────────────────────────────────────────────── -->
+  <div class="actions-bar" id="actionsBar" style="gap:1rem; flex-wrap:wrap;">
+    <button type="button" class="btn btn-save" id="btnSauvegarder" onclick="sauvegarder()">
+      💾 حفظ المسودة
+    </button>
+    <button type="button" class="btn" id="btnConfirmer" onclick="ouvrirModal()"
+            style="display:none; background:var(--primary); color:#fff;">
+      ✅ تأكيد وإغلاق
+    </button>
+  </div>
+
+  <!-- ─── زر PDF (يظهر بعد التأكيد) ────────────────────────────────── -->
+  <div class="actions-bar" id="pdfBar" style="gap:1rem; display:none; margin-top:.8rem; flex-wrap:wrap; align-items:center;">
+    <span id="refBadge" style="background:var(--primary);color:#fff;padding:.5rem 1rem;
+          border-radius:6px;font-weight:700;font-size:.95rem;letter-spacing:.5px;"></span>
+    <button type="button" class="btn btn-generate" id="btnGenerer" onclick="genererPDF()">
+      📄 إنشاء المراسلة (PDF)
+    </button>
+  </div>
+
+</form>
+
+<!-- ─── الخطوة 2 : مراسلة المدير الجهوي (اختياري) ──────────────────── -->
+<div id="step2Section" style="display:none; margin-top:1.4rem;">
+  <div class="card" style="border:2px dashed var(--border); background:var(--card-bg);">
+    <div class="card-title" style="display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;">
+      <span style="background:#f59e0b;color:#fff;padding:.25rem .7rem;border-radius:5px;font-size:.82rem;font-weight:700;">
+        الخطوة 2 — اختياري
+      </span>
+      <span>مراسلة المدير الجهوي للديوانة</span>
+    </div>
+    <p style="color:var(--text-muted);font-size:.9rem;margin:.2rem 0 1rem;">
+      توجيه نسخة من برنامج التكوين لإعلام الجهات المعنية.
+    </p>
+    <!-- ما رُسِّم فعلا : chaque مراسلة tirée porte SON عدد. La retirer d'ici le
+         rend au rرصيد — effacer une ligne de saisie ci-dessous n'y suffit pas. -->
+    <div id="drIssuedWrap" style="display:none; margin-bottom:.9rem;">
+      <label style="font-size:.85rem;color:var(--text-muted);">ما رُسِّم إلى حدّ الآن (لكلّ مراسلة عددها)</label>
+      <div id="drIssued" style="margin-top:.35rem; display:flex; flex-direction:column; gap:.4rem;"></div>
+    </div>
+
+    <!-- الإدارة الجهوية مرجع النظر — الوجهة الوحيدة لمراسلات المديرين -->
+    <div style="font-weight:700;font-size:.9rem;margin:.2rem 0 .35rem;color:var(--text);">
+      🏛️ الإدارة الجهوية مرجع النظر
+    </div>
+    <div id="adminContainer" style="display:flex; flex-direction:column; gap:.55rem; margin-bottom:.5rem;"></div>
+    <button type="button" class="btn" style="background:var(--primary);color:#fff;padding:.32rem .8rem;font-size:.82rem;"
+            onclick="ajouterJiha('admin')">➕ إضافة إدارة جهوية</button>
+
+    <p style="margin:.9rem 0 0;font-size:.82rem;color:var(--text-light);line-height:1.7;">
+      اختر الإدارة الجهوية مرجع النظر من القائمة (أو اكتبها يدويًّا)، ثمّ اضغط «إنشاء
+      المراسلة» — تُوجَّه المراسلة إلى <strong>السيّد المدير الجهوي</strong> للإدارة
+      المختارة، ويُسحب عددها ويُقيَّد في السّجلّ فتظهر أعلاه. يمكن اختيار أكثر من إدارة.
+      لفسخ مراسلة وإرجاع عددها استعمل زرّ الفسخ 🗑 هناك — لا حذفَ سطر الإدخال، فذلك لا يُرجع العدد.
+    </p>
+  </div>
+</div>
+
+<!-- ─── Sélecteur de dorra : chaque دورة se traite séparément ────────── -->
+<div id="dorraPicker" style="display:none; margin-top:1.4rem;">
+  <div class="card">
+    <div class="card-title" style="display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;">
+      <span style="background:#0f766e;color:#fff;padding:.25rem .7rem;border-radius:5px;font-size:.82rem;font-weight:700;">
+        الدورات
+      </span>
+      <span>اختر الدورة التي ستعمل عليها</span>
+    </div>
+    <p style="color:var(--text-muted);font-size:.9rem;margin:.2rem 0 1rem;">
+      كل دورة مستقلّة عن الأخرى ابتداء من الخطوة 3: تُستكمل وتُسجَّل وتُفسخ وحدها.
+    </p>
+    <div class="table-wrapper">
+      <table class="list-table" style="width:100%;">
+        <thead>
+          <tr>
+            <th style="width:40px;">ع/ر</th>
+            <th>الدورة التكوينية</th>
+            <th>التاريخ</th>
+            <th>المكوّن</th>
+            <th>التقدّم</th>
+            <th style="width:170px;">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody id="dorraPickerBody"></tbody>
+      </table>
+    </div>
+    {# v1.6.1 — تنبيه خفيف : la دورة choisie a une date déjà passée. On
+       n'empêche rien : on invite seulement à vérifier la date. #}
+    <div id="dorraPasseeAvis" class="avis-passee" role="status" style="display:none;">
+      <span class="avis-passee__txt"></span>
+      <button type="button" class="avis-passee__x" title="إخفاء"
+              onclick="_masquerAvisPassee()">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── الخطوة 3 : قوائم المشاركين ─────────────────────────────────── -->
+<div id="step3Section" style="display:none; margin-top:1.4rem;">
+  <div class="card">
+    <div class="card-title" style="display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;">
+      <span style="background:var(--primary);color:#fff;padding:.25rem .7rem;border-radius:5px;font-size:.82rem;font-weight:700;">
+        الخطوة 3
+      </span>
+      <span>قوائم المشاركين</span>
+    </div>
+    <p style="color:var(--text-muted);font-size:.9rem;margin:.2rem 0 1rem;">
+      اختر دورة تكوينية لإدخال قائمة المشاركين وإنشاء الوثيقة.
+    </p>
+    <div id="formationsList"></div>
+  </div>
+</div>
+
+<!-- ─── الخطوة 4 : البطاقة البيداغوجية ─────────────────────────────────── -->
+<div id="step4Section" style="display:none; margin-top:1.4rem;">
+  <div class="card">
+    <div class="card-title" style="display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;">
+      <span style="background:#7c3aed;color:#fff;padding:.25rem .7rem;border-radius:5px;font-size:.82rem;font-weight:700;">
+        الخطوة 4
+      </span>
+      <span>البطاقة البيداغوجية</span>
+    </div>
+    <p style="color:var(--text-muted);font-size:.9rem;margin:.2rem 0 1rem;">
+      راجع وعدّل بيانات البطاقة البيداغوجية لكل دورة ثم أكّد لإنشاء الوثيقة.
+    </p>
+    <div id="bataqaList"></div>
+  </div>
+</div>
+
+<!-- ─── الخطوة 5 : برنامج الدّورة التّكوينيّة ─────────────────────────── -->
+<div id="step5Section" style="display:none; margin-top:1.4rem;">
+  <div class="card">
+    <div class="card-title" style="display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;">
+      <span style="background:#0369a1;color:#fff;padding:.25rem .7rem;border-radius:5px;font-size:.82rem;font-weight:700;">
+        الخطوة 5
+      </span>
+      <span>برنامج الدّورة التّكوينيّة</span>
+    </div>
+    <p style="color:var(--text-muted);font-size:.9rem;margin:.2rem 0 1rem;">
+      أضف صفوف البرنامج (التوقيت من/إلى، بيان النشاط، المتدخّلون) ثم أكّد لإنشاء وثيقة PDF.
+    </p>
+    <div id="programmeList"></div>
+  </div>
+</div>
+
+<!-- ─── الخطوة 6 : تسجيل التكوين + مذكرة تكوين داخلية ────────────────── -->
+<div id="step6Section" style="display:none; margin-top:1.4rem;">
+  <div class="card">
+    <div class="card-title" style="display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;">
+      <span style="background:#7c3aed;color:#fff;padding:.25rem .7rem;border-radius:5px;font-size:.82rem;font-weight:700;">
+        الخطوة 6
+      </span>
+      <span>تسجيل التكوين — مذكّرة تكوين داخليّة</span>
+    </div>
+    <p style="color:var(--text-muted);font-size:.9rem;margin:.2rem 0 1rem;">
+      سجّل الدّورة ثمّ أنشئ المذكّرة الدّاخليّة الممضاة من طرف المدير العام للمدرسة الوطنيّة للدّيوانة.
+    </p>
+    <div id="memoList"></div>
+
+    <!-- المصادقة النهائيّة على البرنامج : n'apparaît qu'une fois TOUTES les
+         دورات enregistrées. Elle vérifie سلامة المعطيات والترقيم avant de sceller. -->
+    <div id="carteMoussadaqa" style="display:none; margin-top:1.4rem; padding:1rem 1.2rem;
+         border:2px solid #16a34a; border-radius:12px; background:#f0fdf4;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;">
+        <div style="color:#166534;">
+          <strong style="font-size:1rem;">المصادقة النهائيّة على البرنامج</strong>
+          <p style="margin:.4rem 0 0;font-size:.86rem;line-height:1.7;">
+            كلّ الدورات مسجَّلة. أجرِ المراجعة النهائيّة للتأكّد من سلامة كلّ
+            المعطيات وترقيم المراسلات، ثمّ اختم البرنامج نهائيّا.
+          </p>
+        </div>
+        <button type="button" class="btn" style="background:#16a34a;color:#fff;white-space:nowrap;"
+                onclick="ouvrirMoussadaqa()">🔒 مراجعة ومصادقة</button>
+      </div>
+      <div id="moussadaqaScelle" style="display:none;margin-top:.6rem;color:#166534;font-weight:700;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Toast ─────────────────────────────────────────────────────────── -->
+
+
+<!-- ─── Modal تأكيد ───────────────────────────────────────────────────── -->
+<div id="modalConfirm" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+     background:rgba(0,0,0,.55); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:var(--card-bg); border-radius:14px; padding:2rem 2rem 1.6rem;
+              max-width:460px; width:92%; box-shadow:0 12px 40px rgba(0,0,0,.35);
+              direction:rtl; text-align:right;">
+    <h3 style="margin:0 0 .6rem; color:var(--text); font-size:1.15rem;">🔒 تأكيد وإغلاق البرنامج</h3>
+    <p style="color:var(--text-muted); font-size:.88rem; margin:0 0 1.2rem;">
+      بعد التأكيد لن تتمكن من تعديل هذا البرنامج.
+    </p>
+
+    <div style="background:var(--bg); border-radius:9px; padding:.9rem 1rem; margin-bottom:1.4rem;">
+      <table style="width:100%; border-collapse:collapse; font-size:.92rem;">
+        <tr>
+          <td style="padding:.35rem .4rem; color:var(--text-muted); white-space:nowrap;">نوع المراسلة</td>
+          <td style="padding:.35rem .4rem; font-weight:700;" id="recap-type">—</td>
+        </tr>
+        <tr>
+          <td style="padding:.35rem .4rem; color:var(--text-muted); white-space:nowrap;">شهر التكوين</td>
+          <td style="padding:.35rem .4rem; font-weight:600;" id="recap-mois">—</td>
+        </tr>
+        <tr>
+          <td style="padding:.35rem .4rem; color:var(--text-muted); white-space:nowrap;">عدد الدورات</td>
+          <td style="padding:.35rem .4rem; font-weight:600;" id="recap-nb">—</td>
+        </tr>
+      </table>
+    </div>
+    <div id="recap-dimanche" style="display:none; background:#fff7ed; border:1px solid #fdba74;
+         color:#9a3412; border-radius:9px; padding:.7rem .9rem; margin:-.6rem 0 1.2rem;
+         font-size:.88rem; line-height:1.75;"></div>
+
+    <div style="display:flex; gap:.8rem;">
+      <button type="button" onclick="confirmer()"
+              style="background:#22c55e;color:#fff;border:none;border-radius:8px;
+                     padding:.65rem 1.4rem;font-size:.98rem;cursor:pointer;font-family:inherit;font-weight:600;">
+        ✔ نعم، تأكيد
+      </button>
+      <button type="button" onclick="fermerModal()"
+              style="background:#ef4444;color:#fff;border:none;border-radius:8px;
+                     padding:.65rem 1.4rem;font-size:.98rem;cursor:pointer;font-family:inherit;font-weight:600;">
+        ✖ لا، إلغاء
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Modal : تحذير المغادرة (Change 1) ─────────────────────────────────── -->
+<div id="leaveWarningModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+     background:rgba(0,0,0,.58);z-index:99999;align-items:center;justify-content:center;">
+  <div style="background:var(--card-bg);border-radius:16px;padding:2rem 2rem 1.7rem;
+              max-width:460px;width:92%;box-shadow:0 16px 50px rgba(0,0,0,.4);
+              direction:rtl;text-align:right;">
+    <h3 style="margin:0 0 .5rem;color:var(--text);font-size:1.12rem;">⚠️ هل تريد حفظ التكوين قبل المغادرة؟</h3>
+    <p style="color:var(--text-muted);font-size:.88rem;margin:0 0 1.4rem;line-height:1.5;">
+      توجد تغييرات غير محفوظة في النموذج الحالي.
+    </p>
+    <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
+      <button type="button" onclick="_leaveModalSave()"
+              style="background:#22c55e;color:#fff;border:none;border-radius:8px;
+                     padding:.6rem 1.15rem;font-size:.95rem;cursor:pointer;font-family:inherit;font-weight:600;">
+        💾 حفظ ومغادرة
+      </button>
+      <button type="button" onclick="_leaveModalLeave()"
+              style="background:#ef4444;color:#fff;border:none;border-radius:8px;
+                     padding:.6rem 1.15rem;font-size:.95rem;cursor:pointer;font-family:inherit;font-weight:600;">
+        مغادرة دون حفظ
+      </button>
+      <button type="button" onclick="_leaveModalCancel()"
+              style="background:#6b7280;color:#fff;border:none;border-radius:8px;
+                     padding:.6rem 1.15rem;font-size:.95rem;cursor:pointer;font-family:inherit;font-weight:600;">
+        إلغاء
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Modal : تأكيد مخصّص (Change 7) ───────────────────────────────────── -->
+
+<!-- ─── Modal : تنبيه مخصّص (Change 7) ───────────────────────────────────── -->
+
+<!-- ─── Toast ─────────────────────────────────────────────────────────── -->
+
+<!-- ─── الجهات المرجعيّة : liste de suggestion, jamais une contrainte ─────
+     Un datalist propose sans imposer : une جهة absente de la liste peut
+     toujours être saisie à la main, et rien n'est réécrit par le système. -->
+<datalist id="dl_jihat">
+  {% for j in jihat %}<option value="{{ j }}"></option>
+  {% endfor %}
+</datalist>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* v1.7 — Données fournies par le serveur. Le code de la page vit dans
+   static/js/programme/ (01 → 06), chargé juste après, dans cet ordre. */
+const EST_ADMIN = {{ 'true' if est_admin else 'false' }};
+const GRADES_INIT  = {{ grades  | tojson }};
+const MAWAD_INIT   = {{ mawad   | tojson }};
+const LIEUX_INIT   = {{ lieux   | tojson }};
+// v1.4 : seules les fiches publiques des مكوّنين du programme modifié sont
+// injectées ; l'autocomplétion interroge /api/mkowin/recherche.
+const MKOWIN_INIT  = {{ mkowin  | tojson }};
+// v1.6 — الجنس / الفئة العمريّة : pour الإحصائيات seulement, jamais imprimés.
+const SEXES_INIT = {{ SEXES | list | tojson }};
+const FIAAT_INIT = {{ FIAAT | list | tojson }};
+const JIHAT_ADMIN = {{ jihat_admin|default([])|tojson }};
+const JIHAT_GARDE = {{ jihat_garde|default([])|tojson }};
+const FORMATIONS_EDIT = {{ formations_edit | tojson }};
+const PAGE = {
+  lettreId: {{ lettre_edit.id | tojson if lettre_edit else 'null' }},
+  etat: {{ ('verrouille' if (lettre_edit and lettre_edit.ref_complet) else ('brouillon' if lettre_edit else 'nouveau')) | tojson }},
+  refVerrouille: {{ ((lettre_edit.ref_complet if lettre_edit else '') or '') | tojson }},
+  urlAjouterMadda: {{ (url_for('ajouter_madda') ~ '?next=' ~ url_for('nouvelle_lettre')) | tojson }},
+  urlAjouterMkow: {{ (url_for('ajouter_mkow') ~ '?next=' ~ url_for('nouvelle_lettre')) | tojson }},
+};
+</script>
+<script src="{{ url_for('static', filename='js/programme/01_etape1_et_2.js') }}?v={{ version_app }}"></script>
+<script src="{{ url_for('static', filename='js/programme/02_participants.js') }}?v={{ version_app }}"></script>
+<script src="{{ url_for('static', filename='js/programme/03_bataqa_programme.js') }}?v={{ version_app }}"></script>
+<script src="{{ url_for('static', filename='js/programme/04_progression_memo.js') }}?v={{ version_app }}"></script>
+<script src="{{ url_for('static', filename='js/programme/05_autocompletion.js') }}?v={{ version_app }}"></script>
+<script src="{{ url_for('static', filename='js/programme/06_autosauvegarde_init.js') }}?v={{ version_app }}"></script>
+{% endblock %}

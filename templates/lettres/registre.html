@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}سجل المراسلات {{ 'الداخلية' if type_lettre=='interne' else 'الخارجية' }} – {{ annee }}{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+  <h1>🗃️ سجل المراسلات {{ 'الداخلية' if type_lettre=='interne' else 'الخارجية' }}
+    <span dir="ltr" style="font-weight:normal;color:var(--text-muted);">{{ annee }}</span>
+  </h1>
+  <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;">
+    {% if annees and annees|length > 1 %}
+    <!-- سجلّ سنويّ : كلّ سنة سجلّها. السّنوات الماضية تُقرأ وتُطبع ولا تُكتب. -->
+    <select onchange="location.href=this.value" class="form-control"
+            style="width:auto;padding:.35rem .6rem;">
+      {% for a in annees %}
+      <option value="{{ url_for('registre_lettres', type_lettre=type_lettre, annee=a) }}"
+              {% if a == annee %}selected{% endif %}>
+        سجلّ {{ a }}{% if a == annee_ouverte %} — مفتوح{% endif %}
+      </option>
+      {% endfor %}
+    </select>
+    {% endif %}
+    <a href="{{ url_for('registre_lettres', type_lettre='interne', annee=annee) }}"
+       class="btn {% if type_lettre=='interne' %}btn-save{% else %}btn-cancel{% endif %}">داخلية</a>
+    <a href="{{ url_for('registre_lettres', type_lettre='externe', annee=annee) }}"
+       class="btn {% if type_lettre=='externe' %}btn-save{% else %}btn-cancel{% endif %}">خارجية</a>
+    {% if entrees %}<a href="{{ url_for('exporter_registre', type_lettre=type_lettre, annee=annee) }}"
+       class="btn btn-cancel" data-sans-apercu>⬇ Excel</a>{% endif %}
+    {# v1.7 — impression officielle du سجلّ (archivage) #}
+    <a href="{{ url_for('imprimer_registre', type_lettre=type_lettre, annee=annee) }}"
+       target="_blank" class="btn btn-save">🖨️ طباعة السّجلّ (PDF)</a>
+  </div>
+</div>
+
+{% if annee != annee_ouverte %}
+<div class="card" style="margin-bottom:1rem;padding:.8rem 1rem;
+     border-right:4px solid #f59e0b;background:#fffbeb;color:#92400e;line-height:1.7;">
+  📘 هذا سجلّ سنة <strong dir="ltr">{{ annee }}</strong>، وقد أُغلق.
+  يُطّلع عليه ويُطبع، ولا تُسند منه أعداد جديدة —
+  السّجلّ المفتوح هو سجلّ <strong dir="ltr">{{ annee_ouverte }}</strong>.
+</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:1rem;">
+  <div class="fiche-grid">
+    <div class="fiche-row">
+      <span class="fiche-lbl">عدد المراسلات المرسَّمة</span>
+      <span class="fiche-val"><strong>{{ entrees|length }}</strong></span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">آخر رقم مُسنَد</span>
+      <span class="fiche-val" dir="ltr">
+        <strong>{{ '%04d'|format(entrees[-1].numero) if entrees else '0000' }}</strong>
+      </span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">الرقم الموالي</span>
+      <span class="fiche-val" dir="ltr">
+        <strong>{{ '%04d'|format(liberes[0].numero if liberes
+                                else (entrees[-1].numero if entrees else 0) + 1) }}</strong>
+      </span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">أرقام محرَّرة (فسخ)</span>
+      <span class="fiche-val">
+        {% if liberes %}
+          <span class="badge badge-orange" dir="ltr">
+            {{ liberes | map(attribute='numero') | join('، ') }}</span>
+          — تُستعمل قبل أي رقم جديد
+        {% else %}
+          لا شيء
+        {% endif %}
+      </span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">الأرقام الشاغرة</span>
+      <span class="fiche-val">
+        {% if lacunes %}
+          <span class="badge badge-red" dir="ltr">{{ lacunes|join('، ') }}</span>
+        {% else %}
+          لا توجد فجوات ✔
+        {% endif %}
+      </span>
+    </div>
+  </div>
+  <p style="margin:.9rem 0 0;font-size:.86rem;color:var(--text-muted);line-height:1.7;">
+    كل رقم يُسحب — سواء من برنامج تكوين أو مراسلة حرة أو مراسلة المدير الجهوي أو
+    مذكّرة داخلية — يُقيَّد هنا فورا وبصفة نهائية. السلسلتان الداخلية والخارجية
+    مستقلّتان تماما: لا تستعير إحداهما رقما من الأخرى.
+    الرقم <strong>محجوز</strong> ما دام البرنامج قابلا للفسخ، ويصير
+    <strong>نهائيا</strong> بمجرّد تسجيل كل دوراته في المنظومة. وعند الفسخ تعود
+    الأرقام المحجوزة إلى الرصيد فيأخذها أوّل طالب بعدها — أمّا المراسلات الحرة
+    فرقمها نهائي منذ التأكيد ولا يُحرَّر أبدا.
+  </p>
+</div>
+
+{% if entrees %}
+<div class="card" style="padding:0;overflow:hidden;">
+  <table class="list-table table-triable">
+    <thead>
+      <tr>
+        <th>الرقم</th>
+        <th>المرجع</th>
+        <th>نوع الوثيقة</th>
+        <th>الموضوع</th>
+        <th>الحالة</th>
+        <th>تاريخ الترسيم</th>
+        <th data-tri="non">إجراءات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entrees %}
+      <tr>
+        <td class="num-cell" dir="ltr">{{ '%04d'|format(e.numero) }}</td>
+        <td dir="ltr"><strong>{{ e.ref_complet }}</strong></td>
+        <td>
+          <span class="badge {% if e.source=='programme' %}badge-blue
+                             {% elif e.source=='libre' %}badge-green
+                             {% elif e.source=='directeur' %}badge-orange
+                             {% else %}badge-gray{% endif %}">
+            {{ e.source_label }}
+          </span>
+        </td>
+        <td style="min-width:260px;max-width:460px;white-space:normal;word-break:break-word;line-height:1.5;"
+            title="{{ e.objet or '' }}">{{ e.objet or '—' }}</td>
+        <td>
+          {% if e.statut == 'provisoire' %}
+            <span class="badge badge-gray">محجوز</span>
+          {% else %}
+            <span class="badge badge-blue">نهائي</span>
+          {% endif %}
+        </td>
+        <td dir="ltr">{{ e.date_attribution[:10] if e.date_attribution else '—' }}</td>
+        <td class="actions-td">
+          {% if e.source in ['programme', 'libre', 'directeur'] and e.source_id %}
+          <a href="{{ url_for('detail_lettre', lettre_id=e.source_id) }}"
+             class="btn-action btn-view" title="عرض">👁</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-msg">
+  لم يُسنَد أي رقم في سلسلة المراسلات
+  {{ 'الداخلية' if type_lettre=='interne' else 'الخارجية' }} بعد.
+</div>
+{% endif %}
+{% endblock %}

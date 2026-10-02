@@ -1,0 +1,442 @@
+{% extends "base_mustahaqqat.html" %}
+{% block title %}المستحقّات المالية – {{ dorra.titre }}{% endblock %}
+
+{#  ═══════════════════════════════════════════════════════════════════════════
+    الشاشة 3 — الشاشة التلخيصية للمستحقّات المالية
+
+    Rien ne se saisit ici. Les ساعات viennent du برنامج, le صنف du pointage,
+    le سعر du جدول المالي : l'agent voit et approuve. C'est pourquoi l'écran
+    déroule le calcul au lieu d'en annoncer le résultat — approuver un montant
+    dont on ne voit pas l'origine n'est pas approuver.
+
+    Quand le calcul ne tient pas, l'écran NOMME ce qui manque et retire le
+    bouton. Un « 0.000 د » affiché serait un montant, et un montant faux.
+    ═══════════════════════════════════════════════════════════════════════════ #}
+
+{% set fige = dorra.etat == 'acheve' %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;">
+  <h1>💵 المستحقّات المالية</h1>
+  <a href="{{ url_for('mustahaqqat_ghayr_manjaza') }}" class="btn btn-cancel">↩ قائمة الدورات</a>
+</div>
+
+<div class="fil-etapes">
+  <span class="fil fait">1 · اختيار الدورة</span>
+  <span class="fil fait">2 · ورقة الحضور</span>
+  <span class="fil fait">3 · تصنيف الدورة</span>
+  <span class="fil {% if fige %}fait{% else %}en-cours{% endif %}">4 · المستحقّات المالية</span>
+</div>
+
+{# ── بطاقة الدورة ───────────────────────────────────────────────────────── #}
+<div class="card" style="margin-top:1.2rem;">
+  <div class="card-title">📋 معطيات الدورة</div>
+  <div style="display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap;">
+    <div class="bloc-classe">
+      <div class="bloc-classe-lbl">صنف الدورة</div>
+      <div class="bloc-classe-val">{{ dorra.classe }}</div>
+    </div>
+    <div style="flex:1;min-width:250px;">
+      <div class="fiche-grid">
+        <div class="fiche-row"><div class="fiche-lbl">عنوان الدورة</div><div class="fiche-val">{{ dorra.titre }}</div></div>
+        <div class="fiche-row"><div class="fiche-lbl">تاريخ الدورة</div><div class="fiche-val">{{ dorra|dates_dorra }}</div></div>
+        <div class="fiche-row"><div class="fiche-lbl">المكوّن</div><div class="fiche-val">{{ dorra.grade }} {{ dorra.nom_formateur or '—' }}</div></div>
+        <div class="fiche-row"><div class="fiche-lbl">الحضور</div><div class="fiche-val">{{ nb_presents }} حاضرًا — {{ nb_absents }} غائبًا</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.1rem;">
+    {% for c in classes %}
+    <span class="puce-repart {% if c == dorra.classe %}retenue{% endif %}">
+      الصنف {{ c }} : <strong>{{ repartition.get(c, 0) }}</strong>
+    </span>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── ما يمنع الاحتساب ───────────────────────────────────────────────────── #}
+{% if not chiffrage.chiffrable %}
+<div class="card bloc-manque" style="margin-top:1.3rem;">
+  <div class="card-title" style="color:#cc2200;">⚠ تعذّر احتساب المستحقّات</div>
+  <ul class="liste-motifs">
+    {% for motif in chiffrage.motifs %}<li>{{ motif }}</li>{% endfor %}
+  </ul>
+  <p class="note-manque">
+    المستحقّات لا تُحتسب على التقريب. عالِج ما سبق ثمّ عُد إلى هذه الشاشة.
+  </p>
+  <div class="actions-bar" style="margin-top:1rem;">
+    <a href="{{ url_for('mustahaqqat_hodour', formation_id=dorra.id) }}" class="btn">✏ تحيين ورقة الحضور</a>
+    <a href="{{ url_for('mustahaqqat_bareme_mali') }}" class="btn">⚖️ الجدول المالي</a>
+  </div>
+</div>
+{% else %}
+
+{# ── تفصيل الاحتساب ─────────────────────────────────────────────────────── #}
+<div class="card" style="margin-top:1.3rem;">
+  <div class="card-title">🧮 تفصيل الاحتساب</div>
+
+  <div class="calc-grid">
+    {# 1 — الساعات #}
+    <div class="calc-etape">
+      <div class="calc-num">1</div>
+      <div class="calc-corps">
+        <div class="calc-titre">الساعات — من برنامج الدورة</div>
+        {% if chiffrage.jours and chiffrage.jours|length > 1 %}
+        {# V2 — دورة متعدّدة الأيّام : chaque jour est une séance, arrondie seule #}
+        <table class="calc-jours">
+          {% for j in chiffrage.jours %}
+          <tr><td>{{ j.libelle }}{% if j.periode %} ({{ j.periode }}){% endif %}</td>
+              <td dir="ltr">{{ j.date }}</td>
+              <td>من {{ j.debut }} إلى {{ j.fin }}</td>
+              <td><strong>{{ j.heures }}</strong> س</td></tr>
+          {% endfor %}
+        </table>
+        <div class="calc-note">تُحتسب ساعات كلّ يوم على حدة (كلّ ساعة بدأت تُحتسب كاملة) ثمّ تُجمع.</div>
+        {% else %}
+        <div class="calc-detail" dir="ltr">{{ chiffrage.debut }} — {{ chiffrage.fin }}</div>
+        {% endif %}
+        <div class="calc-note">
+          المدّة الفعلية : {{ chiffrage.duree_texte }}
+          {% if chiffrage.arrondi %}
+            <span class="badge-arrondi">↑ تُحتسب {{ chiffrage.heures }} ساعات: كلّ ساعة بدأت تُحتسب كاملة</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="calc-val">{{ chiffrage.heures }}<span class="calc-unite">ساعة</span></div>
+    </div>
+
+    {# 2 — السعر #}
+    <div class="calc-etape">
+      <div class="calc-num">2</div>
+      <div class="calc-corps">
+        <div class="calc-titre">سعر الساعة — من الجدول المالي</div>
+        <div class="calc-detail">{{ chiffrage.libelle_groupe }}</div>
+        <div class="calc-note">
+          رتبة المكوّن «{{ dorra.grade or '—' }}» × {{ chiffrage.libelle_colonne }}
+        </div>
+      </div>
+      <div class="calc-val">{{ chiffrage.taux_texte }}<span class="calc-unite">د</span></div>
+    </div>
+
+    {# 3 — المبلغ #}
+    <div class="calc-etape calc-total">
+      <div class="calc-num">=</div>
+      <div class="calc-corps">
+        <div class="calc-titre">المبلغ الجملي المستحقّ</div>
+        <div class="calc-detail" dir="ltr">
+          {{ chiffrage.heures }} × {{ chiffrage.taux_texte }} د
+        </div>
+      </div>
+      <div class="calc-val">{{ chiffrage.montant_texte }}<span class="calc-unite">د</span></div>
+    </div>
+  </div>
+</div>
+
+{# ── المستفيد ──────────────────────────────────────────────────────────── #}
+<div class="card" style="margin-top:1.3rem;">
+  <div class="card-title">🎓 المستفيد من الخلاص</div>
+  <div class="table-wrapper">
+    <table class="list-table">
+      <thead>
+        <tr>
+          <th>المكوّن</th><th>الرتبة</th><th>المجموعة</th>
+          <th>الساعات</th><th>سعر الساعة</th><th>المبلغ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>{{ dorra.nom_formateur or '—' }}</strong></td>
+          <td>{{ dorra.grade or '—' }}</td>
+          <td>{{ chiffrage.groupe }}</td>
+          <td>{{ chiffrage.heures }}</td>
+          <td dir="ltr">{{ chiffrage.taux_texte }} د</td>
+          <td><strong dir="ltr">{{ chiffrage.montant_texte }} د</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endif %}
+
+{# ── قائمة المشاركين ───────────────────────────────────────────────────── #}
+<div class="card" style="margin-top:1.3rem;">
+  <div class="card-title">🙋 المشاركون ({{ nb_presents }} حاضرًا — {{ nb_absents }} غائبًا)</div>
+  <div class="table-wrapper">
+    <table class="list-table">
+      <thead>
+        <tr>
+          <th style="width:46px;">ر.ع</th>
+          <th>الاسم واللقب</th><th>الرتبة</th><th>الصنف</th>
+          <th>مقرّ العمل</th><th>الحضور</th>
+          {% if jours|length > 1 %}<th>أيّام الحضور</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in participants %}
+        <tr {% if not p.present %}style="background:rgba(204,34,0,.055);"{% endif %}>
+          <td class="num-cell">{{ loop.index }}</td>
+          <td>{{ p.nom_prenom }}</td>
+          <td>{{ p.grade or '—' }}</td>
+          <td>{{ p.classe or '—' }}</td>
+          <td>{{ p.lieu_travail or '—' }}</td>
+          <td>
+            {% if p.present %}
+              <span style="color:#1a7a3a;font-weight:700;">حاضر</span>
+            {% else %}
+              <span style="color:#cc2200;font-weight:700;">غائب</span>
+            {% endif %}
+          </td>
+          {% if jours|length > 1 %}
+          <td>{{ p.nb_jours_presents }}/{{ jours|length }}{% if p.absences %}
+            <span style="color:#b91c1c;font-size:.82rem;">— غياب: {% for n in p.absences %}ي{{ n }}{% if not loop.last %}، {% endif %}{% endfor %}</span>{% endif %}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── التأكيد — يأتي أخيرًا، بعد أن يُعرَض المستفيد والمشاركون ───────────────
+   لا يُعرَض إلّا عند إمكان الاحتساب (وإلّا فلا مبلغ يُقَرّ). #}
+{% if chiffrage.chiffrable %}
+{% if fige %}
+<div class="card bloc-arrete" style="margin-top:1.3rem;">
+  <div class="card-title" style="color:#1a7a3a;">✅ المستحقّات منجزة</div>
+  <p class="note-arrete">
+    تمّ إقرار المستحقّات بتاريخ <strong dir="ltr">{{ dorra.mu_acheve_at or '—' }}</strong>،
+    والمبلغ المعتمد هو <strong dir="ltr">{{ chiffrage.montant_texte }} د</strong>.
+    الجدول المالي قد يُحيَّن لاحقًا دون أن يمسّ هذا المبلغ.
+  </p>
+  {# Le bouton d'impression est là pour dire ce qui vient ensuite, pas pour
+     être cliqué : il doit donc SE VOIR comme indisponible. Un bouton plein
+     qui ne répond pas se lit comme une panne. #}
+  <div class="actions-bar" style="margin-top:1.1rem;">
+    <a class="btn btn-generate"
+       href="{{ url_for('khalas_assistant', formation_id=dorra.id) }}">
+      🖨 طباعة وثائق الخلاص
+    </a>
+    {# v1.7.1 — شهادات المشاركين الفعليين #}
+    <a class="btn" style="background:#7c3aed;color:#fff;" target="_blank"
+       href="{{ url_for('generer_shahadat_pdf', lettre_id=dorra.lettre_id, formation_id=dorra.id) }}"
+       title="شهادة مشاركة لكلّ مشارك حاضر حسب ورقة الحضور">
+      🎓 طباعة شهائد المشاركين
+    </a>
+    <a href="{{ url_for('mustahaqqat_manjaza') }}" class="btn btn-cancel">قائمة الدورات المنجزة</a>
+    {% if session.get('role') == 'admin' %}
+    <button class="btn btn-danger" onclick="rouvrirMustahaqqat()">🔓 إعادة فتح المستحقّات</button>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="card bloc-confirmer" style="margin-top:1.3rem;">
+  <div class="card-title">✔ إقرار المستحقّات</div>
+  <p class="note-confirmer">
+    بالتأكيد يُثبَّت المبلغ <strong dir="ltr">{{ chiffrage.montant_texte }} د</strong>
+    وتنتقل الدورة إلى «برامج تكوين منجزة». المبلغ المثبَّت لا يتغيّر بعد ذلك
+    حتى لو حُيِّن الجدول المالي.
+  </p>
+  {% if session.get('role') == 'admin' %}
+  {% if dorra.pret %}
+  <p class="note-confirmer note-pret">📨 أعلن <strong>{{ dorra.mu_pret_par or 'المستعمل' }}</strong>
+     أنّ الدورة جاهزة للمصادقة{% if dorra.mu_pret_at %} (<span dir="ltr">{{ dorra.mu_pret_at[:16] }}</span>){% endif %}.</p>
+  {% endif %}
+  <div class="actions-bar" style="margin-top:1.1rem;">
+    <button class="btn btn-save" id="btnConfirmer" onclick="confirmerMustahaqqat()">
+      ✔ التأكيد النهائي
+    </button>
+  {% else %}
+  <p class="note-confirmer">التأكيد النهائي للمستحقّات من مشمولات المشرف العام :
+     بعد مراجعة البيانات أعلِمه بأنّ الدورة جاهزة.</p>
+  <div class="actions-bar" style="margin-top:1.1rem;">
+    {% if dorra.pret %}
+    <button class="btn btn-save" id="btnPret" disabled>⏳ بانتظار مصادقة المشرف</button>
+    {% else %}
+    <button class="btn btn-save" id="btnPret" onclick="signalerPret()">📨 جاهز للمصادقة</button>
+    {% endif %}
+  {% endif %}
+    <a href="{{ url_for('mustahaqqat_hodour', formation_id=dorra.id) }}" class="btn btn-cancel">
+      ↩ رجوع إلى ورقة الحضور
+    </a>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{# Le style est toujours nécessaire ; les fonctions d'envoi ne le sont que si
+   quelque chose peut réellement être envoyé. Les émettre sans cela laisserait
+   dans la page une phrase de confirmation au montant vide — « سيُثبَّت المبلغ
+   د » — qu'aucun bouton n'appelle mais que la page porte quand même. #}
+<style>
+  .fil-etapes { display:flex; gap:.5rem; flex-wrap:wrap; }
+  .fil {
+    font-size:.87rem; padding:.4rem 1rem; border-radius:999px;
+    border:1px solid var(--border); background:var(--card-bg); color:var(--text-light);
+  }
+  .fil.fait     { background:rgba(26,122,58,.12); border-color:rgba(26,122,58,.45); color:#1a7a3a; font-weight:700; }
+  .fil.en-cours { background:var(--primary); border-color:var(--primary); color:#fff; font-weight:700; }
+
+  .bloc-classe {
+    min-width:160px; text-align:center; padding:1.2rem 1.6rem;
+    background:linear-gradient(150deg, var(--primary-l), var(--primary-d));
+    color:#fff; border-radius:14px; box-shadow:var(--shadow);
+  }
+  .bloc-classe-lbl { font-size:.9rem; opacity:.85; }
+  .bloc-classe-val { font-size:2.9rem; font-weight:700; line-height:1.15; }
+
+  .puce-repart {
+    font-size:.88rem; padding:.3rem .85rem; border-radius:999px;
+    background:var(--bg); border:1px solid var(--border); color:var(--text-light);
+  }
+  .puce-repart.retenue {
+    background:rgba(26,122,58,.13); border-color:rgba(26,122,58,.45);
+    color:#1a7a3a; font-weight:700;
+  }
+
+  /* ── تفصيل الاحتساب ──────────────────────────────────────────────────────
+     Une étape par ligne, le nombre toujours au même endroit : l'œil descend
+     la colonne des valeurs et lit le calcul sans le chercher. */
+  .calc-grid { display:flex; flex-direction:column; gap:.7rem; }
+
+  .calc-etape {
+    display:grid; grid-template-columns:38px 1fr auto;
+    align-items:center; gap:1rem;
+    padding:.9rem 1.1rem; border-radius:12px;
+    background:var(--bg); border:1px solid var(--border);
+  }
+  .calc-num {
+    width:32px; height:32px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--primary-l); color:#fff; font-weight:700; font-size:1rem;
+  }
+  .calc-titre  { font-weight:700; color:var(--text); font-size:.97rem; }
+  .calc-detail { color:var(--text-light); font-size:.9rem; margin-top:.15rem; }
+  /* V2 — détail des heures par jour */
+  .calc-jours { border-collapse:collapse; margin-top:.35rem; font-size:.86rem; }
+  .calc-jours td { padding:.15rem .6rem; border-bottom:1px dashed var(--border); color:var(--text); }
+  .calc-note   { color:var(--text-light); font-size:.85rem; margin-top:.3rem; line-height:1.8; }
+
+  .calc-val {
+    font-size:1.9rem; font-weight:700; color:var(--primary-txt, var(--primary));
+    font-variant-numeric:tabular-nums; white-space:nowrap;
+  }
+  .calc-unite { font-size:.8rem; font-weight:400; color:var(--text-light); margin-inline-start:.3rem; }
+
+  .calc-total {
+    background:linear-gradient(150deg, rgba(26,122,58,.10), rgba(26,122,58,.04));
+    border-color:rgba(26,122,58,.4);
+  }
+  .calc-total .calc-num { background:#1a7a3a; }
+  .calc-total .calc-val { color:#1a7a3a; font-size:2.3rem; }
+
+  .badge-arrondi {
+    display:inline-block; margin-inline-start:.45rem;
+    background:rgba(197,138,0,.14); border:1px solid rgba(197,138,0,.42);
+    color:#8a6100; border-radius:999px; padding:.14rem .7rem; font-size:.82rem;
+  }
+
+  /* ── ما يمنع الاحتساب ───────────────────────────────────────────────── */
+  .bloc-manque { border-inline-start:4px solid #cc2200; }
+  .liste-motifs { margin:.3rem 0 0; padding-inline-start:1.3rem; line-height:2; color:var(--text); }
+  .note-manque  { margin-top:.8rem; color:var(--text-light); line-height:1.9; font-size:.92rem; }
+
+  .bloc-confirmer { border-inline-start:4px solid var(--accent); }
+  .bloc-arrete    { border-inline-start:4px solid #1a7a3a; }
+  .note-confirmer, .note-arrete { color:var(--text-light); line-height:1.95; margin:0; }
+
+  /* Une action qui viendra : visible, lisible, et manifestement inactive. */
+  .btn-a-venir {
+    background:transparent; color:var(--text-light);
+    border:1px dashed var(--border); cursor:not-allowed; opacity:.85;
+  }
+  .btn-a-venir:hover { background:transparent; transform:none; }
+  .puce-a-venir {
+    display:inline-block; margin-inline-start:.4rem;
+    background:var(--bg); border:1px solid var(--border);
+    border-radius:999px; padding:.05rem .55rem; font-size:.76rem;
+  }
+
+  .note-pret { color:var(--primary); font-weight:600; }
+  @media (max-width: 640px) {
+    .calc-etape { grid-template-columns:32px 1fr; }
+    .calc-val   { grid-column:2; text-align:start; }
+  }
+</style>
+
+{% if chiffrage.chiffrable and not fige %}
+<script>
+/* ── إقرار المستحقّات ───────────────────────────────────────────────────────
+   Le jeton CSRF est ajouté par ui.js à toute requête modifiante : inutile de
+   le poser ici. Le bouton, lui, se verrouille dès le clic — sans cela un
+   double-clic sur un poste lent enverrait deux fois le même arrêté. */
+async function confirmerMustahaqqat() {
+  const btn = document.getElementById('btnConfirmer');
+  if (!btn || btn.disabled) return;
+
+  showConfirmModal(
+    'سيُثبَّت المبلغ {{ chiffrage.montant_texte }} د نهائيًّا وتنتقل الدورة إلى «برامج تكوين منجزة». هل تؤكّد؟',
+    async function () {
+      btn.disabled = true;
+      const texte = btn.textContent;
+      btn.textContent = '… جارٍ الحفظ';
+      try {
+        const rep = await fetch('{{ url_for("api_confirmer_qima", formation_id=dorra.id) }}',
+                                { method: 'POST' });
+        const d = await rep.json();
+        if (!rep.ok || d.erreur) {
+          showAlertModal(d.erreur || 'تعذّر حفظ المستحقّات');
+          btn.disabled = false; btn.textContent = texte;
+          return;
+        }
+        showAlertModal('تمّ إقرار المستحقّات: ' + d.montant_texte + ' د',
+                       function () { window.location.reload(); });
+      } catch (e) {
+        showAlertModal('خطأ في الاتصال: ' + e.message);
+        btn.disabled = false; btn.textContent = texte;
+      }
+    });
+}
+
+async function signalerPret() {
+  const btn = document.getElementById('btnPret');
+  if (!btn || btn.disabled) return;
+  showConfirmModal('سيُعلَم المشرف العام بأنّ مستحقّات هذه الدورة جاهزة للمصادقة. هل تواصل؟',
+    async function () {
+      btn.disabled = true;
+      try {
+        const rep = await fetch('{{ url_for("api_pret_validation", formation_id=dorra.id) }}',
+                                { method: 'POST' });
+        const d = await rep.json().catch(() => ({}));
+        if (!rep.ok || d.erreur) {
+          showAlertModal(d.erreur || 'تعذّر إعلام المشرف'); btn.disabled = false; return;
+        }
+        showAlertModal('تمّ إعلام المشرف العام بأنّ الدورة جاهزة للمصادقة',
+                       function () { window.location.reload(); });
+      } catch (e) { showAlertModal('خطأ في الاتصال: ' + e.message); btn.disabled = false; }
+    });
+}
+</script>
+{% endif %}
+
+{% if fige and session.get('role') == 'admin' %}
+<script>
+async function rouvrirMustahaqqat() {
+  showConfirmModal(
+    'إعادة فتح المستحقّات تلغي المبلغ المثبَّت وتُرجع الدورة إلى مرحلة الاحتساب. هل تواصل؟',
+    async function () {
+      try {
+        const rep = await fetch('{{ url_for("api_rouvrir_mustahaqqat", formation_id=dorra.id) }}',
+                                { method: 'POST' });
+        const d = await rep.json();
+        if (!rep.ok || d.erreur) { showAlertModal(d.erreur || 'تعذّرت إعادة الفتح'); return; }
+        window.location.reload();
+      } catch (e) { showAlertModal('خطأ في الاتصال: ' + e.message); }
+    });
+}
+</script>
+{% endif %}
+{% endblock %}

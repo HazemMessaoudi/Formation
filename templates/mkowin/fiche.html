@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}بيانات الشّخص – {{ mkow.grade }} {{ mkow.nom }}{% if mkow.prenom %} {{ mkow.prenom }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+  <h1>👤 بطاقة الشّخص</h1>
+  <div style="display:flex;gap:.7rem;">
+    <a href="{{ url_for('modifier_mkow', mkow_id=mkow.id) }}" class="btn btn-save">✏️ تعديل</a>
+    {% if est_admin %}
+    <form method="post" action="{{ url_for('supprimer_mkow', mkow_id=mkow.id) }}"
+          data-confirm="حذف «{{ mkow.nom }}{% if mkow.prenom %} {{ mkow.prenom }}{% endif %}» نهائيًّا؟{% if nb_liees %}&#10;&#10;⚠ تنبيه : هذا الإسم مرتبط بـ {{ nb_liees }} دورة مسجّلة ؛ ستبقى الدورات لكن دون ربطها ببطاقة الشّخص (وثيقة الخلاص والمستحقّات).{% endif %}&#10;لا يمكن التراجع عن هذه العمليّة." style="display:inline;">
+      <button type="submit" class="btn" style="background:#fde8e8;color:var(--red);">🗑 حذف</button>
+    </form>
+    {% endif %}
+    <a href="{{ url_for('liste_mkowin') }}" class="btn btn-cancel">← القائمة</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="fiche-pg-header">
+    <div class="fiche-pg-title">{{ mkow.grade }} {{ mkow.nom }}{% if mkow.prenom %} {{ mkow.prenom }}{% endif %}</div>
+    {% if mkow.specialite %}<div class="fiche-pg-badge">{{ mkow.specialite }}</div>{% endif %}
+  </div>
+
+  <!-- الهوية -->
+  <div class="fiche-section" style="margin-top:1rem;">
+    <div class="fiche-section-title">🪪 المعلومات الشخصية</div>
+    <div class="fiche-grid">
+      <div class="fiche-row">
+        <span class="fiche-lbl">بطاقة التعريف</span>
+        <span class="fiche-val">
+          <span dir="ltr">{{ mkow.cin or '—' }}</span>{% if mkow.cin_date %}&nbsp; صادرة بتاريخ &nbsp;<span dir="ltr">{{ mkow.cin_date }}</span>{% endif %}
+        </span>
+      </div>
+      <div class="fiche-row"><span class="fiche-lbl">رقم المعرف الوحيد</span><span class="fiche-val" dir="ltr">{{ mkow.identifiant_unique or '—' }}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">العنوان الشخصي</span><span class="fiche-val">{{ mkow.adresse or '—' }}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">الهاتف الجوال</span><span class="fiche-val" dir="ltr">{{ mkow.telephone_gsm or '—' }}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">الهاتف الإداري</span><span class="fiche-val" dir="ltr">{{ mkow.telephone_adm or '—' }}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">الجنس</span><span class="fiche-val">{{ mkow.sexe or '—' }}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">الفئة العمريّة</span><span class="fiche-val">{{ mkow.fiaa_omria or '—' }}</span></div>
+    </div>
+  </div>
+
+  <!-- المهني -->
+  <div class="fiche-section">
+    <div class="fiche-section-title">💼 المعلومات المهنية</div>
+    <div class="fiche-grid">
+      <div class="fiche-row"><span class="fiche-lbl">الشهادة العلمية</span><span class="fiche-val">{{ mkow.diplome or '—' }}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">الدرجة</span><span class="fiche-val">{{ mkow.degre or '—' }}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">الخطة الوظيفية</span><span class="fiche-val">{{ mkow.plan_fonctionnel or '—' }}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">الإدارة</span><span class="fiche-val">{{ mkow.administration or '—' }}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">وزارة الإشراف</span><span class="fiche-val">{{ mkow.ministere or '—' }}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">مكان العمل</span><span class="fiche-val">{{ mkow.lieu_travail or '—' }}</span></div>
+    </div>
+  </div>
+
+  <!-- التواصل والبنك -->
+  <div class="fiche-section">
+    <div class="fiche-section-title">🏦 التواصل والحساب البنكي</div>
+    <div class="fiche-grid">
+      <div class="fiche-row"><span class="fiche-lbl">البريد الإلكتروني</span><span class="fiche-val" dir="ltr">{{ mkow.email or '—' }}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">البنك / الفرع</span><span class="fiche-val">{{ mkow.banque or '—' }}{% if mkow.agence %} – {{ mkow.agence }}{% endif %}</span></div>
+      <div class="fiche-row"><span class="fiche-lbl">رقم الحساب</span><span class="fiche-val" dir="ltr">{{ mkow.num_compte or '—' }}</span></div>
+    </div>
+  </div>
+
+  {% if mkow.notes %}
+  <div class="fiche-section">
+    <div class="fiche-section-title">📝 ملاحظات</div>
+    <div class="fiche-section-body">{{ mkow.notes }}</div>
+  </div>
+  {% endif %}
+
+  <div class="fiche-row" style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.8rem;">
+    <span class="fiche-lbl">تاريخ التسجيل</span>
+    <span class="fiche-val" dir="ltr">{{ mkow.date_ajout[:10] if mkow.date_ajout else '—' }}</span>
+  </div>
+</div>
+{% endblock %}

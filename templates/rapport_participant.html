@@ -1,0 +1,189 @@
+{% extends "base_statistiques.html" %}
+{% block title %}البطاقة التّقييميّة للمشارك – نظام إدارة التكوين{% endblock %}
+
+{# V3 — Phase 6a : البطاقة التّقييميّة. Recherche par nom ou par المعرّف
+   الوحيد (suggestions pendant la saisie), puis la بطاقة : identité,
+   indicateurs, مؤشّر المواظبة, graphiques, سجلّ الدّورات ; PDF imprimable. #}
+
+{% block content %}
+{% include "_rapport_graphique_css.html" %}
+<style>
+  .btn.btn-primary { background:var(--primary); color:#fff; text-decoration:none; }
+  .btn.btn-primary:hover { background:var(--primary-l); }
+  a.btn { text-decoration:none; display:inline-flex; align-items:center; gap:.3rem; }
+  .fp-recherche { padding:1rem 1.2rem; margin-bottom:1rem; position:relative; }
+  .fp-recherche form { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+  .fp-recherche input[type=search] { flex:1; min-width:240px; font-size:1rem; padding:.6rem .8rem; }
+  .fp-sugg { position:absolute; inset-inline:1.2rem; top:calc(100% - .6rem); z-index:30; background:var(--card-bg);
+             border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.15); overflow:hidden; }
+  .fp-sugg a, .fp-res a { display:flex; justify-content:space-between; gap:1rem; padding:.55rem .9rem; color:var(--text);
+                          text-decoration:none; border-bottom:1px solid var(--border); }
+  .fp-sugg a:hover, .fp-sugg a.actif, .fp-res a:hover { background:var(--glow-1); }
+  .fp-sugg small, .fp-res small { color:var(--text-light); }
+  .fp-res { padding:0; overflow:hidden; margin-bottom:1rem; }
+  .fp-id { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:.5rem 1.2rem; padding:1rem 1.2rem; margin-bottom:1rem; }
+  .fp-id div { font-size:.9rem; color:var(--text-light); }
+  .fp-id b { color:var(--text); margin-inline-start:.3rem; }
+  .fp-nom { grid-column:1 / -1; font-size:1.35rem; font-weight:800; color:var(--text); display:flex; gap:.8rem; align-items:center; flex-wrap:wrap; }
+  .fp-badge { font-size:.8rem; font-weight:700; padding:.15rem .7rem; border-radius:999px; background:var(--glow-1); color:var(--text); }
+  .fp-outils { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+  .fp-hist td.absent { color:#b42318; font-weight:700; }
+  body[data-theme="5"] .fp-hist td.absent { color:#ff8a80; }
+  .fp-vide { padding:2rem; text-align:center; color:var(--text-light); }
+</style>
+
+<div class="page-header">
+  <h1>🪪 البطاقة التّقييميّة للمشارك</h1>
+</div>
+
+<div class="card fp-recherche no-print">
+  <form method="GET" action="{{ url_for('rapport_participant') }}" autocomplete="off" id="formRecherche">
+    <input type="search" name="q" id="champQ" class="form-control" value="{{ q or (f.identite.nom if f else '') }}"
+           placeholder="اكتب اسم المشارك أو معرّفه الوحيد…" aria-label="البحث عن مشارك" autofocus>
+    <button type="submit" class="btn btn-primary">🔎 بحث</button>
+  </form>
+  <div class="fp-sugg" id="sugg" hidden></div>
+</div>
+
+{% if q and not f %}
+  <div class="card fp-res">
+    {% for r in resultats %}
+      <a href="{{ url_for('rapport_participant', p=r.cle) }}">
+        <span><b>{{ r.nom }}</b> <small>{{ r.grade }}{% if r.identifiant %} — {{ r.identifiant }}{% endif %}</small></span>
+        <small>{{ r.dorrat }} دورة — آخرها {{ r.derniere }}</small>
+      </a>
+    {% else %}
+      <div class="fp-vide">لا يوجد مشارك يطابق «{{ q }}».</div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if not q and not f %}
+  <div class="card fp-vide">ابحث عن مشارك بالاسم أو بالمعرّف الوحيد لعرض بطاقته: الدّورات التّي تابعها، حضوره وغياباته، ومؤشّر مواظبته.</div>
+{% endif %}
+
+{% if f %}
+  {% set t = f.totaux %}
+  <div class="fp-outils no-print">
+    <form method="GET" action="{{ url_for('rapport_participant') }}" style="display:flex;gap:.4rem;align-items:center;">
+      <input type="hidden" name="p" value="{{ cle }}">
+      <label for="selAnnee" style="font-size:.85rem;color:var(--text-light);">السّنة</label>
+      <select name="annee" id="selAnnee" class="form-control" onchange="this.form.submit()" style="min-width:8rem;">
+        <option value="">كلّ السّنوات</option>
+        {% for a in f.annees %}<option value="{{ a }}" {{ 'selected' if a == annee }}>{{ a }}</option>{% endfor %}
+      </select>
+    </form>
+    <a class="btn btn-primary" target="_blank" href="{{ url_for('rapport_participant_pdf', p=cle, annee=annee or '') }}">📄 البطاقة PDF</a>
+  </div>
+
+  <div class="card fp-id">
+    <div class="fp-nom">{{ f.identite.nom }}
+      {% if t.mawadhaba %}<span class="fp-badge">مؤشّر المواظبة: {{ t.mawadhaba }}</span>{% endif %}</div>
+    <div>الرّتبة:<b>{{ f.identite.grade or '—' }}</b></div>
+    <div>المعرّف الوحيد:<b>{{ f.identite.identifiant or '—' }}</b></div>
+    <div>الصّفة:<b>{{ f.identite.categorie }}</b></div>
+    <div>الجنس:<b>{{ f.identite.sexe or '—' }}</b></div>
+    <div>الفئة العمريّة:<b>{{ f.identite.fiaa or '—' }}</b></div>
+    <div>مكان العمل:<b>{{ f.identite.lieu_travail or '—' }}</b></div>
+    <div>الجهة المرجعيّة:<b>{{ f.identite.jiha or '—' }}</b></div>
+    {% macro fr(iso) %}{{ (iso[8:10] ~ '/' ~ iso[5:7] ~ '/' ~ iso[:4]) if iso else '—' }}{% endmacro %}
+    <div>أوّل دورة:<b>{{ fr(t.premiere) }}</b></div>
+    <div>آخر دورة:<b>{{ fr(t.derniere) }}</b></div>
+  </div>
+
+  <div class="rg-racine" id="fpRacine">
+    <div class="rg-kpis">
+      <div class="rg-kpi"><div class="rg-kpi__lib">الدّورات المتابعة</div><div class="rg-kpi__val">{{ t.dorrat }}</div>
+        <div class="rg-kpi__ev">معدّل المركز: <b>{{ t.moyenne_centre }}</b> دورة لكلّ مشارك</div></div>
+      <div class="rg-kpi"><div class="rg-kpi__lib">أيّام التّكوين</div><div class="rg-kpi__val">{{ t.jours }}</div>
+        <div class="rg-kpi__ev">دون أيّام الغياب</div></div>
+      <div class="rg-kpi"><div class="rg-kpi__lib">نسبة الحضور</div>
+        <div class="rg-kpi__val">{{ (t.taux_presence ~ '%') if t.taux_presence is not none else '—' }}</div>
+        <div class="rg-kpi__ev">{{ t.presences }} حضور من {{ t.closes }} دورة مختومة</div></div>
+      <div class="rg-kpi"><div class="rg-kpi__lib">الغيابات</div><div class="rg-kpi__val">{{ t.absences }}</div>
+        <div class="rg-kpi__ev">{% if t.en_cours %}{{ t.en_cours }} دورة غير مختومة{% else %}—{% endif %}</div></div>
+      <div class="rg-kpi"><div class="rg-kpi__lib">مؤشّر المواظبة</div><div class="rg-kpi__val">{{ t.mawadhaba or '—' }}</div>
+        <div class="rg-kpi__ev">ممتازة ≥ 95% · جيّدة ≥ 85% · متوسّطة ≥ 70%</div></div>
+    </div>
+
+    <section class="rg-section">
+      <div class="rg-grille">
+        <div class="rg-carte" data-graphe="fp_annees"></div>
+        <div class="rg-carte" data-graphe="fp_niveau"></div>
+        <div class="rg-carte" data-graphe="fp_categorie"></div>
+        <div class="rg-carte">
+          <h3 class="rg-titre">حسب السّنوات</h3>
+          <table class="rg-table"><thead><tr><th>السّنة</th><th>الدّورات</th><th>الأيّام</th><th>الغيابات</th></tr></thead>
+            <tbody>{% for x in f.par_annee | reverse %}<tr><td>{{ x.valeur }}</td><td>{{ x.dorrat }}</td><td>{{ x.jours }}</td><td>{{ x.absences }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="rg-section">
+      <h2>سجلّ الدّورات ({{ f.dorrat | length }})</h2>
+      <div class="rg-carte rg-dorrat-wrap">
+        <table class="rg-dorrat fp-hist table-triable">
+          <thead><tr><th>#</th><th>الدّورة</th><th>التّاريخ</th><th>الأيّام</th><th>المكوّن</th>
+            <th>التّصنيف</th><th>المستوى</th><th>الصّيغة</th><th>الرّتبة آنذاك</th><th>الحضور</th></tr></thead>
+          <tbody>
+            {% for d in f.dorrat %}
+              <tr><td class="num">{{ loop.index }}</td><td>{{ d.titre }}</td>
+                <td class="num">{{ d.date_formation[8:10] }}/{{ d.date_formation[5:7] }}/{{ d.date_formation[:4] }}</td>
+                <td class="num">{{ d.jours }}</td><td>{{ d.formateur }}</td><td>{{ d.categorie }}</td>
+                <td>{{ d.niveau }}</td><td>{{ d.mode }}</td><td>{{ d.grade_alors }}</td>
+                <td class="num {{ 'absent' if d.present == false }}">{{ '—' if d.present is none else ('حاضر' if d.present else 'غائب') }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <script type="application/json" id="fpGraphes">{{ graphes | tojson }}</script>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/rapports_graphes.js') }}"></script>
+<script>
+(function () {
+  'use strict';
+  const g = document.getElementById('fpGraphes');
+  if (g) RapportsGraphes.dessinerTout(document.getElementById('fpRacine'), JSON.parse(g.textContent));
+
+  /* ── suggestions pendant la saisie ── */
+  const champ = document.getElementById('champQ');
+  const boite = document.getElementById('sugg');
+  const URL_S = {{ url_for('rapport_participant_recherche') | tojson }};
+  const URL_F = {{ url_for('rapport_participant') | tojson }};
+  let minuterie = null, actif = -1;
+  function fermer() { boite.hidden = true; actif = -1; }
+  champ.addEventListener('input', function () {
+    clearTimeout(minuterie);
+    const q = champ.value.trim();
+    if (q.length < 2) { fermer(); return; }
+    minuterie = setTimeout(function () {
+      fetch(URL_S + '?q=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (j) {
+        if (!j.resultats.length) { fermer(); return; }
+        boite.innerHTML = j.resultats.map(function (r) {
+          return '<a href="' + URL_F + '?p=' + encodeURIComponent(r.cle) + '"><span><b>' + esc(r.nom) + '</b> <small>' +
+                 esc(r.grade) + (r.identifiant ? ' — ' + esc(r.identifiant) : '') + '</small></span><small>' + r.dorrat + ' دورة</small></a>';
+        }).join('');
+        boite.hidden = false; actif = -1;
+      });
+    }, 220);
+  });
+  champ.addEventListener('keydown', function (e) {
+    const liens = boite.hidden ? [] : boite.querySelectorAll('a');
+    if (!liens.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      actif = (actif + (e.key === 'ArrowDown' ? 1 : -1) + liens.length) % liens.length;
+      liens.forEach(function (a, i) { a.classList.toggle('actif', i === actif); });
+    } else if (e.key === 'Enter' && actif >= 0) { e.preventDefault(); location.href = liens[actif].href; }
+    else if (e.key === 'Escape') fermer();
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.fp-recherche')) fermer(); });
+})();
+</script>
+{% endblock %}

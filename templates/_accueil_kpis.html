@@ -1,0 +1,35 @@
+{# V3 — Phase 6c : مؤشّرات الشّاشة الرّئيسيّة (السّنة الجارية / الماضية).
+   Discret, sous les trois portes ; un clic mène aux التّقارير. #}
+{% include "_rapport_graphique_css.html" %}
+<style>
+  .acc-kpis { width:100%; max-width:1000px; margin-top:2rem; }
+  .acc-kpis__tete { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; flex-wrap:wrap; margin-bottom:.6rem; }
+  .acc-kpis__tete h2 { font-size:1.05rem; margin:0; color:var(--primary-txt, var(--primary)); }
+  .acc-kpis__tete small { color:var(--text-light); }
+  .acc-kpis__tete a { font-size:.85rem; color:var(--primary-txt, var(--primary)); text-decoration:none; }
+  .acc-kpis .rg-kpis { grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); margin-bottom:.8rem; }
+  .acc-kpis .rg-kpi { box-shadow:var(--shadow); }
+  .acc-kpis .rg-carte { box-shadow:var(--shadow); }
+</style>
+<section class="acc-kpis rg-racine" id="accKpis" aria-label="مؤشّرات السّنة">
+  <div class="acc-kpis__tete">
+    <h2>📈 نشاط سنة {{ kpis.annee }} <small>من 01/01 إلى {{ kpis.jusqu_au }}، مقارنة بنفس الفترة من سنة {{ kpis.annee - 1 }}</small></h2>
+    <a href="{{ url_for('rapports', type='annee', annee=kpis.annee) }}">كلّ التّقارير ←</a>
+  </div>
+  <div class="rg-kpis">
+    {% for k in kpis.indicateurs %}
+      <div class="rg-kpi">
+        <div class="rg-kpi__lib">{{ k.libelle }}</div>
+        <div class="rg-kpi__val">{{ k.texte }}</div>
+        <div class="rg-kpi__ev">{% if k.evolution is not none %}<b>{{ '▲' if k.evolution > 0 else ('▼' if k.evolution < 0 else '=') }} {{ k.evolution | abs }}%</b> مقابل {{ k.precedent_texte }}{% else %}—{% endif %}</div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="rg-carte" data-graphe="accueil_mois"></div>
+</section>
+<script type="application/json" id="accKpisDonnees">{{ kpis | tojson }}</script>
+<script src="{{ url_for('static', filename='js/rapports_graphes.js') }}"></script>
+<script>
+  RapportsGraphes.dessinerTout(document.getElementById('accKpis'),
+                               JSON.parse(document.getElementById('accKpisDonnees').textContent));
+</script>

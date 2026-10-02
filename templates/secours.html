@@ -1,0 +1,68 @@
+{#
+  V3.1 — استرجاع المنظومة : seule page servie quand la base est abîmée.
+  Aucun lien vers le reste du programme ; la restauration exige un مشرف عام
+  de la copie choisie (vérifié côté serveur, routes/maintenance.py).
+#}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" translate="no">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>استرجاع المنظومة</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <style>
+    body { background: var(--bg); }
+    .sec-wrap { max-width: 640px; margin: 0 auto; padding: 3rem 1rem; }
+    .sec-wrap h1 { font-size: 1.3rem; color: #b91c1c; margin-bottom: .8rem; }
+    .sec-wrap p { color: var(--text); line-height: 1.9; margin-bottom: .6rem; }
+    .sec-note { color: var(--text-light); font-size: .88rem; }
+    .sec-copie { display: flex; gap: .6rem; align-items: center; padding: .55rem .7rem;
+                 border: 1px solid var(--border); border-radius: 8px; margin-bottom: .45rem; cursor: pointer; }
+    .sec-copie small { color: var(--text-light); }
+    .sec-champs { display: grid; gap: .6rem; margin: 1rem 0; }
+    .sec-champs input { width: 100%; padding: .55rem .7rem; border: 1px solid var(--border);
+                        border-radius: 8px; background: var(--bg-card, #fff); color: inherit; }
+  </style>
+</head>
+<body>
+  {% include '_toasts.html' %}
+  <div class="sec-wrap">
+    <div class="card" style="padding:1.4rem 1.5rem;">
+      <h1>⚠️ قاعدة البيانات تالفة</h1>
+      <p>
+        لم يعد ملفّ قاعدة البيانات في المجلّد <bdi dir="ltr">data</bdi> سليمًا، فلم تُفتح المنظومة
+        حتّى لا يُسجَّل فيه شيء. لم يُحذف الملفّ ولم يُستبدل: تُحفظ نسخة منه قبل أيّ استرجاع.
+      </p>
+      {% if copies %}
+      <p>اختر نسخة سليمة ثمّ أدخل اسم وكلمة مرور مشرف عام (كما هما في تلك النسخة):</p>
+      <form method="post" action="{{ url_for('secours_restaurer') }}" autocomplete="off">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        {% for c in copies %}
+        <label class="sec-copie">
+          <input type="radio" name="copie" value="{{ c.chemin }}" {% if loop.first %}checked{% endif %}>
+          <span>
+            <strong>{{ {'miroir': 'النسخة المرآة', 'miroir_precedent': 'النسخة المرآة السابقة', 'sauvegarde': 'نسخة احتياطيّة'}[c.origine] }}</strong>
+            — <bdi dir="ltr">{{ c.date }}</bdi>
+            <br><small dir="ltr">{{ c.chemin }}</small>
+          </span>
+        </label>
+        {% endfor %}
+        <div class="sec-champs">
+          <input type="text" name="utilisateur" placeholder="اسم المستخدم (مشرف عام)" required>
+          <input type="password" name="mot_de_passe" placeholder="كلمة المرور" required>
+        </div>
+        <button type="submit" class="btn btn-save">♻️ استرجاع النسخة المختارة</button>
+      </form>
+      {% else %}
+      <p><strong>لم يُعثر على أيّ نسخة سليمة</strong> (لا نسخة مرآة ولا نسخة احتياطيّة).</p>
+      <p>إن كانت لديكم نسخة خارجيّة (مفتاح USB): أغلق البرنامج، ثمّ ضع الملفّ مكان
+        <bdi dir="ltr">data\formation.db</bdi> ثمّ أعد التّشغيل.</p>
+      {% endif %}
+      <p class="sec-note" style="margin-top:1rem;">
+        قبل الاسترجاع تُحفظ نسخة من الملفّ التالف في <bdi dir="ltr">data\backups</bdi> باسم يبدأ بـ <bdi dir="ltr">remplacee_</bdi>.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}إضافة تكوين{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+  <h1>📚 إضافة تكوين جديد</h1>
+  <a href="{{ url_for('liste_mawad') }}" class="btn btn-cancel">← القائمة</a>
+</div>
+
+<!-- ─── تحميل دورة : قراءة بطاقة من ملفّ (Excel / Word / قالب) ─────────── -->
+<div class="card" style="border:2px dashed #0f766e;background:var(--card-bg);margin-bottom:1rem;">
+  <div style="display:flex;align-items:center;gap:.6rem;font-weight:700;margin-bottom:.4rem;">
+    <span style="background:#0f766e;color:#fff;padding:.2rem .6rem;border-radius:5px;font-size:.8rem;">تحميل دورة</span>
+    <span>املأ الحقول تلقائيًّا من ملفّ بطاقة بيداغوجية</span>
+  </div>
+  <p style="color:var(--text-muted);font-size:.86rem;margin:.2rem 0 .7rem;line-height:1.7;">
+    يقبل النظام <strong>Excel (.xlsx / .xls)</strong> و<strong>Word (.docx / .doc)</strong>. يقرأ جداول البطاقة
+    (الموضوع، المحاور، الأهداف، الطرق…) ويضعها في الحقول أسفله <strong>لمراجعتك قبل الحفظ</strong> — لا يحفظ شيئًا تلقائيًّا.
+    <strong>.docx</strong> و<strong>.xlsx</strong> أدقّ قراءةً.
+  </p>
+  <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;">
+    <input type="file" id="bataqaFile" accept=".xlsx,.xlsm,.xls,.docx,.doc"
+           style="font-size:.86rem;max-width:100%;">
+    <button type="button" class="btn" style="background:#0f766e;color:#fff;padding:.4rem .9rem;font-size:.86rem;"
+            onclick="lireBataqa()">📥 قراءة الملفّ</button>
+  </div>
+  <div id="bataqaMsg" style="margin-top:.6rem;font-size:.86rem;"></div>
+</div>
+
+<div class="card">
+  <form method="post" autocomplete="off" id="maddaForm">
+    <input type="hidden" name="remplacer_id" id="remplacer_id" value="">
+
+    <!-- العنوان والنوع -->
+    <div class="form-grid-2">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>عنوان التكوين <span class="req">*</span></label>
+        <input type="text" name="titre" required placeholder="عنوان مادة التكوين">
+      </div>
+      <div class="form-group">
+        <label>نوع التكوين</label>
+        <select name="type_formation">
+          <option value="مستمر حضوري" selected>مستمر حضوري</option>
+          <option value="أساسي">أساسي</option>
+          <option value="مستمر">مستمر</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- المستهدفون + مكان التكوين -->
+    <div class="form-group" style="margin-top:.4rem;">
+      <label>المستهدفون بالتكوين</label>
+      <textarea name="mustahdafun" rows="2" class="ta-field" placeholder="الفئة المستهدفة بالتكوين..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>مكان التكوين (افتراضي)</label>
+      <input type="text" name="lieu_formation_defaut" class="ta-field" placeholder="مثال: أمانة المال الجهوية بالقصرين">
+    </div>
+
+    <!-- المحاور والأهداف -->
+    <div class="form-group" style="margin-top:.8rem;">
+      <label>محاور الدورة</label>
+      <textarea name="mahawer" rows="4" class="ta-field" placeholder="محاور الدورة التكوينية..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>أهداف الدورة</label>
+      <textarea name="objectifs" rows="4" class="ta-field" placeholder="أهداف التكوين..."></textarea>
+    </div>
+
+    <!-- الطرق والمعينات -->
+    <div class="form-grid-2" style="margin-top:.4rem;">
+      <div class="form-group">
+        <label>الطرق البيداغوجية</label>
+        <textarea name="methodes_pedagogiques" rows="3" class="ta-field" placeholder="الطرق البيداغوجية المعتمدة..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>المعينات البيداغوجية</label>
+        <textarea name="moyens_pedagogiques" rows="3" class="ta-field" placeholder="الوسائل والمعينات..."></textarea>
+      </div>
+    </div>
+
+    <!-- الإعداد والتجهيزات -->
+    <div class="form-grid-2" style="margin-top:.4rem;">
+      <div class="form-group">
+        <label>الإعداد المادي</label>
+        <textarea name="preparation_materielle" rows="3" class="ta-field" placeholder="متطلبات الإعداد المادي..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>التجهيزات والمعدات الخصوصية</label>
+        <textarea name="equipements" rows="3" class="ta-field" placeholder="التجهيزات اللازمة..."></textarea>
+      </div>
+    </div>
+
+    <div class="actions-bar" style="gap:1rem;margin-top:1.5rem;">
+      <button type="submit" class="btn btn-save">💾 حفظ</button>
+      <a href="{{ url_for('liste_mawad') }}" class="btn btn-cancel">إلغاء</a>
+    </div>
+  </form>
+</div>
+
+<style>
+.ta-field {
+  width:100%;border:1px solid var(--border);border-radius:6px;
+  padding:.55rem .75rem;font-family:inherit;font-size:.95rem;resize:vertical;
+}
+</style>
+
+<script>
+function _setChamp(nom, val) {
+  const el = document.querySelector(`[name="${nom}"]`);
+  if (!el || val == null || val === '') return false;
+  if (el.tagName === 'SELECT') {
+    const ok = Array.from(el.options).some(o => o.value === val);
+    if (ok) el.value = val;
+  } else {
+    el.value = val;
+  }
+  return true;
+}
+
+async function lireBataqa() {
+  const inp = document.getElementById('bataqaFile');
+  const msg = document.getElementById('bataqaMsg');
+  if (!inp || !inp.files || !inp.files.length) {
+    msg.innerHTML = '<span style="color:#b91c1c;">اختر ملفًّا أوّلًا.</span>';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('fichier', inp.files[0]);
+  msg.innerHTML = '<span style="color:var(--text-muted);">جارٍ القراءة…</span>';
+  try {
+    const res = await fetch(`{{ url_for('importer_bataqa') }}`, {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': window.CSRF_TOKEN || '' },
+      body: fd
+    });
+    const d = await res.json();
+    if (!d.succes) {
+      msg.innerHTML = `<span style="color:#b91c1c;">${esc(d.erreur || 'تعذّرت القراءة.')}</span>`;
+      return;
+    }
+    // Pré-remplissage — l'utilisateur relit avant d'enregistrer.
+    const champs = d.champs || {};
+    let n = 0;
+    Object.keys(champs).forEach(k => { if (_setChamp(k, champs[k])) n++; });
+    // Toute nouvelle lecture repart d'un ajout neuf, sauf choix « تعويض ».
+    document.getElementById('remplacer_id').value = '';
+
+    if (d.existe_id) {
+      // عنوان موجود مسبقًا : تعويض أو تغيير العنوان.
+      const titre = champs.titre || '';
+      const proceed = () => {
+        document.getElementById('remplacer_id').value = d.existe_id;
+        msg.innerHTML = `<span style="color:#0f766e;">✓ قُرئ ${n} حقلًا. `
+          + `عند الحفظ سيُعوَّض التكوين الموجود «${esc(titre)}» بالجديد.</span>`;
+      };
+      if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+          `عنوان التكوين «${titre}» موجود مسبقًا في القائمة.\n\n`
+          + 'اضغط «تأكيد» لإلغاء القديم وتعويضه بالجديد، أو «إلغاء» لتغيير العنوان يدويًّا.',
+          proceed);
+        msg.innerHTML = `<span style="color:#b45309;">⚠️ قُرئ ${n} حقلًا — العنوان موجود مسبقًا، اختر تعويضًا أو غيّر العنوان.</span>`;
+      } else {
+        proceed();
+      }
+    } else {
+      msg.innerHTML = `<span style="color:#0f766e;">✓ تمّت قراءة ${n} حقلًا. راجعها ثمّ احفظ.</span>`;
+    }
+  } catch (e) {
+    msg.innerHTML = `<span style="color:#b91c1c;">خطأ: ${esc(e.message)}</span>`;
+  }
+}
+</script>
+{% endblock %}

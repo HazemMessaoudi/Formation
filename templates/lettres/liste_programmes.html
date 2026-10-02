@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}الدورات التكوينية{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:1.2rem;">
+  <h1>📋 الدورات التكوينية المسجَّلة</h1>
+  {% if dorrat %}<a href="{{ url_for('exporter_dorrat') }}" class="btn btn-cancel" data-sans-apercu>⬇ تصدير إلى Excel</a>{% endif %}
+</div>
+
+{% if dorrat %}
+<p style="color:var(--text-muted);margin-bottom:1rem;">
+  عناوين التكوين التي تمّ إنشاء مذكّرة داخليّة في شأنها ({{ dorrat|length }}) —
+  اضغط على عنوان الدورة لعرض كامل معطياتها وطباعة كلّ وثائقها.
+</p>
+
+{% for f in dorrat %}
+<div class="card" style="margin-bottom:.9rem;padding:0;overflow:hidden;">
+
+  <!-- Bandeau cliquable : titre de la dorra -->
+  <div onclick="basculerDorra({{ f.id }})"
+       style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;cursor:pointer;
+              padding:1rem 1.2rem;background:var(--bg);">
+    <span style="font-weight:700;background:var(--primary);color:#fff;border-radius:6px;
+                 padding:.2rem .6rem;font-size:.85rem;">{{ loop.index }}</span>
+    <span style="font-weight:700;font-size:1.05rem;flex:1;min-width:160px;">{{ f.titre or '—' }}</span>
+    {# V3.0.1 — chaque دورة affiche SON numéro (مذكّرة داخليّة), pas celui du برنامج commun #}
+    <span class="badge badge-blue" dir="ltr" title="مرجع المذكّرة الداخليّة للدورة">{{ f.memo_ref or f.lettre_ref or '' }}</span>
+    <span style="color:var(--text-muted);font-size:.88rem;" dir="ltr">{{ f|dates_dorra }}</span>
+    <span class="badge badge-green">{{ f.nb_participants }} مشارك</span>
+    <span class="etat-pastille etat-pastille--{{ f.etat.code }}" title="{{ 'مسجّلة نهائيًّا — التحيين بعد التسجيل النهائي من مشمولات المشرف العام' if f.finalise_at else 'حالة الدورة' }}">{{ f.etat.icone }} {{ f.etat.label }}</span>
+    {% if f.etat_fin %}<span class="etat-pastille etat-pastille--{{ f.etat_fin.code }}" title="المستحقّات المالية">{{ f.etat_fin.icone }} {{ f.etat_fin.label }}</span>{% endif %}
+    <span style="color:var(--text-muted);font-size:.8rem;" title="تاريخ إنشاء التكوين" dir="ltr">
+      🕐 {{ f.date_creation or '—' }}</span>
+    <span id="fleche_{{ f.id }}" style="font-size:1.1rem;color:var(--primary-txt, var(--primary));">▼</span>
+  </div>
+
+  <!-- Contenu dépliable -->
+  <div id="dorra_{{ f.id }}" style="display:none;padding:1.2rem;border-top:1px solid var(--border);">
+
+    <div class="fiche-grid" style="margin-bottom:1.2rem;">
+      <div class="fiche-row">
+        <span class="fiche-lbl">عنوان الدورة</span>
+        <span class="fiche-val"><strong>{{ f.titre or '—' }}</strong></span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">مرجع المذكّرة الداخليّة</span>
+        <span class="fiche-val" dir="ltr">{{ f.memo_ref or '—' }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">مرجع البرنامج</span>
+        <span class="fiche-val" dir="ltr">{{ f.lettre_ref or '—' }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">المكوّن</span>
+        <span class="fiche-val">{{ f.grade or '' }} {{ f.nom_formateur or '—' }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">مكان عمل المكوّن</span>
+        <span class="fiche-val">{{ f.lieu_travail or '—' }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">تاريخ التكوين</span>
+        <span class="fiche-val" dir="ltr">{{ f|dates_dorra }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">تاريخ إنشاء التكوين</span>
+        <span class="fiche-val" dir="ltr">{{ f.date_creation or '—' }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">الفترة</span>
+        <span class="fiche-val">{{ f.periode or '—' }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">مكان التكوين</span>
+        <span class="fiche-val">{{ f.lieu_formation or '—' }}</span>
+      </div>
+      <div class="fiche-row">
+        <span class="fiche-lbl">الشهر / السنة</span>
+        <span class="fiche-val">{{ f.lettre_mois }} {{ f.lettre_annee }}</span>
+      </div>
+    </div>
+
+    <!-- Participants -->
+    <div style="font-weight:700;margin-bottom:.5rem;">
+      👥 المشاركون ({{ f.nb_participants }})
+    </div>
+    {% if f.participants %}
+    <div style="overflow:auto;margin-bottom:1.2rem;">
+      <table class="list-table" style="font-size:.88rem;">
+        <thead>
+          <tr>
+            <th>ع/ر</th><th>الاسم واللقب</th><th>الرتبة</th>
+            <th>المعرف الوحيد</th><th>مكان العمل</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in f.participants %}
+          <tr>
+            <td class="num-cell">{{ "%02d"|format(loop.index) }}</td>
+            <td><strong>{{ p.nom_prenom or '—' }}</strong></td>
+            <td>{{ p.grade or '—' }}</td>
+            <td dir="ltr">{{ p.identifiant_unique or '—' }}</td>
+            <td>{{ p.lieu_travail or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p style="color:var(--text-muted);margin-bottom:1.2rem;">لم يتمّ إدخال المشاركين.</p>
+    {% endif %}
+
+    <!-- Impression de toutes les pièces de la dorra -->
+    <div style="font-weight:700;margin-bottom:.6rem;padding-top:.8rem;border-top:1px solid var(--border);">
+      🖨️ وثائق الدورة
+    </div>
+    <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
+      <a href="{{ url_for('generer_lettre', lettre_id=f.lettre_id) }}"
+         target="_blank" class="btn" style="background:#1e293b;color:#fff;">📄 المراسلة الرئيسية</a>
+
+      {% if f.nb_participants %}
+      <a href="{{ url_for('generer_participants_pdf', lettre_id=f.lettre_id, formation_id=f.id) }}"
+         target="_blank" class="btn" style="background:#1e3a8a;color:#fff;">📋 قائمة المشاركين</a>
+      {% else %}
+      <span class="btn" style="opacity:.45;cursor:not-allowed;" title="لا يوجد مشاركون">📋 قائمة المشاركين</span>
+      {% endif %}
+
+      {% if f.bataqa_ok %}
+      <a href="{{ url_for('generer_bataqa_pdf', lettre_id=f.lettre_id, formation_id=f.id) }}"
+         target="_blank" class="btn" style="background:#7c3aed;color:#fff;">🗂️ البطاقة البيداغوجية</a>
+      {% else %}
+      <span class="btn" style="opacity:.45;cursor:not-allowed;" title="لم تُؤكَّد بعد">🗂️ البطاقة البيداغوجية</span>
+      {% endif %}
+
+      {% if f.programme_ok %}
+      <a href="{{ url_for('generer_programme_pdf', lettre_id=f.lettre_id, formation_id=f.id) }}"
+         target="_blank" class="btn" style="background:#0891b2;color:#fff;">📆 برنامج الدورة</a>
+      {% else %}
+      <span class="btn" style="opacity:.45;cursor:not-allowed;" title="لم يُؤكَّد بعد">📆 برنامج الدورة</span>
+      {% endif %}
+
+      {% if f.memo_ok %}
+      <a href="{{ url_for('generer_memo_pdf', lettre_id=f.lettre_id, formation_id=f.id) }}"
+         target="_blank" class="btn" style="background:#059669;color:#fff;">📝 مذكّرة التكوين</a>
+      {% else %}
+      <span class="btn" style="opacity:.45;cursor:not-allowed;" title="لم تُؤكَّد بعد">📝 مذكّرة التكوين</span>
+      {% endif %}
+    </div>
+
+    {# P1 (v1.5) : repartir de ce برنامج pour un autre mois #}
+    <form method="post" action="{{ url_for('dupliquer_lettre', lettre_id=f.lettre_id) }}" class="copie-prog"
+          data-confirm="إنشاء برنامج جديد (مسودّة) بنفس دورات هذا البرنامج ومكوّنيها للشهر المختار؟&#10;التواريخ والمشاركون لا يُنسخون.">
+      <span class="copie-prog__titre">📑 نسخ هذا البرنامج لشهر آخر</span>
+      <select name="mois" required aria-label="الشهر">
+        {% for m in mois_ar %}<option value="{{ m }}" {% if loop.index == mois_suivant %}selected{% endif %}>{{ m }}</option>{% endfor %}
+      </select>
+      <input type="number" name="annee" value="{{ annee_suivante }}" min="2000" max="2100" required aria-label="السنة" style="width:6.5rem;">
+      <button type="submit" class="btn btn-save">نسخ</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="empty-msg">
+  لا توجد دورات تمّ إنشاء مذكّرة داخليّة في شأنها بعد.<br>
+  أنشئ برنامج تكوين وأكمل خطواته حتّى إنشاء المذكّرة الداخليّة، ثمّ ستظهر الدورة هنا.
+  <a href="{{ url_for('nouvelle_lettre') }}">أنشئ برنامجًا جديدًا</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function basculerDorra(fid) {
+  const box = document.getElementById('dorra_' + fid);
+  const fl  = document.getElementById('fleche_' + fid);
+  const ouvert = box.style.display !== 'none';
+  box.style.display = ouvert ? 'none' : '';
+  fl.textContent    = ouvert ? '▼' : '▲';
+}
+// Toutes les dorrat restent repliées : l'utilisateur les ouvre avec la flèche ▼
+</script>
+{% endblock %}

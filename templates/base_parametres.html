@@ -1,0 +1,74 @@
+{# ═══════════════════════════════════════════════════════════════════════════
+   قسم الإعدادات — نفس الهيكل، قائمة مختلفة
+
+   Tout ce qui se RÈGLE vit ici : l'identité du مركز, les جداول qui servent
+   au calcul des مستحقّات, et les références des وثائق الخلاص. Les أقسام de
+   travail quotidien (برامج، مستحقّات) n'ont plus à porter ces écrans.
+
+   Seul le bloc `navmenu` de base.html est redéfini : le reste ne bouge pas.
+   ══════════════════════════════════════════════════════════════════════════ #}
+{% extends "base.html" %}
+
+{% block section_icone %}⚙️{% endblock %}
+{% block section_titre %}الإعدادات{% endblock %}
+
+{% block navmenu %}
+  <li class="nav-item">
+    <a href="{{ url_for('parametres') }}"
+       class="nav-link {% if request.endpoint == 'parametres' %}active{% endif %}">
+      <span class="nav-icon">⚙️</span> الإعدادات العامّة
+    </a>
+  </li>
+
+  {% if est_admin %}
+  <li class="nav-item">
+    <a href="{{ url_for('parametres_centre') }}"
+       class="nav-link {% if request.endpoint == 'parametres_centre' %}active{% endif %}">
+      <span class="nav-icon">🏛</span> هويّة المركز
+    </a>
+  </li>
+
+  {# V3 : النصّ القانوني، نصوص التّقرير، جدول العديد، عدد الدّورات المبرمجة. #}
+  <li class="nav-item">
+    <a href="{{ url_for('parametres_rapports') }}"
+       class="nav-link {% if request.endpoint == 'parametres_rapports' %}active{% endif %}">
+      <span class="nav-icon">📑</span> إعدادات التّقارير
+    </a>
+  </li>
+  {% endif %}
+
+  {# Les deux jadwal vivent côte à côte : l'un dit le صنف, l'autre ce qu'il
+     paie. Les séparer en deux entrées évite qu'on cherche un prix dans le
+     tableau des أصناف. #}
+  <li class="nav-item">
+    <a href="{{ url_for('mustahaqqat_bareme') }}"
+       class="nav-link {% if request.endpoint == 'mustahaqqat_bareme' %}active{% endif %}">
+      <span class="nav-icon">⚖️</span> جدول الأصناف
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a href="{{ url_for('mustahaqqat_bareme_mali') }}"
+       class="nav-link {% if request.endpoint == 'mustahaqqat_bareme_mali' %}active{% endif %}">
+      <span class="nav-icon">💰</span> الجدول المالي
+    </a>
+  </li>
+
+  {% if est_admin %}
+  <li class="nav-item">
+    <a href="{{ url_for('khalas_parametres') }}"
+       class="nav-link {% if request.endpoint == 'khalas_parametres' %}active{% endif %}">
+      <span class="nav-icon">🖨️</span> إعدادات وثائق الخلاص
+    </a>
+  </li>
+
+  {# سجلّ التدقيق : une affaire de contrôle, pas de travail quotidien — il
+     vit avec les autres réglages du مشرف عام. #}
+  <li class="nav-item">
+    <a href="{{ url_for('page_journal') }}"
+       class="nav-link {% if request.endpoint == 'page_journal' %}active{% endif %}">
+      <span class="nav-icon">🗂️</span> سجلّ التدقيق
+    </a>
+  </li>
+  {% endif %}
+{% endblock %}
