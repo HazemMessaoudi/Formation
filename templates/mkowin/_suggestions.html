@@ -1,0 +1,16 @@
+{# v1.5 — A10 : suggestions de saisie (valeurs déjà utilisées dans d'autres
+   fiches, et الجهات المرجعيّة pour الإدارة / مكان العمل). Elles proposent,
+   elles n'imposent jamais : toute autre valeur reste acceptée. #}
+{% set _s = suggestions or {} %}
+{% for champ in ('administration', 'lieu_travail') %}
+<datalist id="dl_mk_{{ champ }}">
+  {% set _deja = [] %}
+  {% for v in (jihat or []) %}{% if v not in _deja %}{% set _ = _deja.append(v) %}<option value="{{ v }}"></option>{% endif %}{% endfor %}
+  {% for v in _s.get(champ, []) %}{% if v not in _deja %}{% set _ = _deja.append(v) %}<option value="{{ v }}"></option>{% endif %}{% endfor %}
+</datalist>
+{% endfor %}
+{% for champ in ('ministere', 'banque', 'agence', 'specialite', 'diplome', 'plan_fonctionnel', 'degre') %}
+<datalist id="dl_mk_{{ champ }}">
+  {% for v in _s.get(champ, []) %}<option value="{{ v }}"></option>{% endfor %}
+</datalist>
+{% endfor %}

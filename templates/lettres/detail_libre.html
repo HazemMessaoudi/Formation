@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}المراسلة الحرة – {{ lettre.ref_complet or '' }}{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+  <h1>✉️ تفاصيل المراسلة الحرة</h1>
+  <div style="display:flex;gap:.7rem;">
+    {% if lettre.ref_complet %}
+    <a href="{{ url_for('generer_lettre_libre', lettre_id=lettre.id) }}" target="_blank"
+       class="btn btn-generate" style="font-size:.9rem;padding:.5rem 1.2rem;">📄 PDF</a>
+    {% endif %}
+    <a href="{{ url_for('liste_lettres_libres') }}" class="btn btn-cancel">← القائمة</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="fiche-grid">
+    <div class="fiche-row">
+      <span class="fiche-lbl">المرجع</span>
+      <span class="fiche-val" dir="ltr"><strong>{{ lettre.ref_complet or '(لم يُعيَّن بعد)' }}</strong></span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">النوع</span>
+      <span class="fiche-val">{{ 'مراسلة داخلية' if lettre.type=='interne' else 'مراسلة خارجية' }}</span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">الشهر / السنة</span>
+      <span class="fiche-val">{{ lettre.mois }} {{ lettre.annee }}</span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">الموجَّهة إلى</span>
+      <span class="fiche-val">{{ lettre.destinataire or '—' }}</span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">الموضوع</span>
+      <span class="fiche-val">{{ lettre.objet or '—' }}</span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">المسؤول</span>
+      <span class="fiche-val">{{ lettre.titre_responsable }} {{ lettre.nom_responsable }}</span>
+    </div>
+    <div class="fiche-row">
+      <span class="fiche-lbl">تاريخ الإنشاء</span>
+      <span class="fiche-val" dir="ltr">{{ lettre.date_creation[:10] if lettre.date_creation else '—' }}</span>
+    </div>
+  </div>
+</div>
+
+{% if lettre.corps %}
+<div class="card">
+  <div class="card-title">نص المراسلة</div>
+  <div style="white-space:pre-wrap;line-height:1.9;font-size:1rem;padding:.5rem 0;">{{ lettre.corps }}</div>
+</div>
+{% endif %}
+{% endblock %}

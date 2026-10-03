@@ -1,0 +1,287 @@
+{% extends "base_statistiques.html" %}
+{% block title %}التّقرير الكتابي – نظام إدارة التكوين{% endblock %}
+
+{# V3 — Phase 4 : التّقرير الكتابي (modèle officiel « التّقرير النّصف سنوي »).
+   La page montre le rapport comme une feuille A4 : chaque paragraphe est un
+   champ modifiable, les tableaux sont calculés (non modifiables ici — le
+   جدول العديد se règle dans إعدادات التّقارير). Les boutons PDF / Word
+   enregistrent d'abord la مسودّة, puis produisent le document. #}
+
+{% macro tableau(tb) %}
+  {% set larg = tb.largeurs %}
+  <table class="re-tab" style="width:{{ (larg | sum) / 18.25 * 100 }}%">
+    <colgroup>{% for l in larg %}<col style="width:{{ l / (larg | sum) * 100 }}%">{% endfor %}</colgroup>
+    {% for row in tb.lignes %}
+      <tr>
+        {% for cel in row %}{% if cel.vm != 'suite' %}
+          <td colspan="{{ cel.span }}"
+              {% if cel.vm == 'debut' %}rowspan="2"{% endif %}
+              class="{{ 're-tab__bandeau' if cel.fond == '8DB3E2' else ('re-tab__clair' if cel.fond == 'DBE5F1' else '') }}"
+              style="font-size:{{ '%.2f' | format(cel.taille / 16) }}em">{{ cel.t }}</td>
+        {% endif %}{% endfor %}
+      </tr>
+    {% endfor %}
+  </table>
+{% endmacro %}
+
+{% macro champ(cle, lignes=2, classe='') %}
+  <div class="re-champ {{ classe }}{% if cle in c.modifies and 'libre' not in classe %} re-champ--modifie{% endif %}">
+    <textarea name="{{ cle }}" rows="{{ lignes }}" data-auto="{{ c.auto[cle] }}"
+              aria-label="{{ libelles[cle] }}">{{ c.textes[cle] }}</textarea>
+    <span class="re-champ__etat" title="نصّ معدّل يدويّا">✎ معدّل</span>
+  </div>
+{% endmacro %}
+
+{% block content %}
+<style>
+  /* « btn-primary » n'a pas de style global : défini ici pour ce module. */
+  .btn.btn-primary { background:var(--primary); color:#fff; text-decoration:none; }
+  .btn.btn-primary:hover { background:var(--primary-l); }
+  a.btn { text-decoration:none; display:inline-flex; align-items:center; gap:.3rem; }
+  .re-entete { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .re-periode { display:flex; gap:.6rem; align-items:flex-end; flex-wrap:wrap; padding:1rem 1.2rem; margin-bottom:1rem; }
+  .re-periode label { display:flex; flex-direction:column; gap:.25rem; font-size:.82rem; color:var(--text-light); }
+  .re-periode select, .re-periode input { min-width:7rem; }
+  .re-chiffres { display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem; }
+  .re-chiffre { background:var(--card-bg); border:1px solid var(--border); border-radius:10px;
+                padding:.45rem .9rem; font-size:.82rem; color:var(--text-light); }
+  .re-chiffre b { display:block; font-size:1.2rem; color:var(--primary); }
+  .re-alertes { border:1px solid #f59e0b; background:#fffbeb; color:#78350f; border-radius:10px;
+                padding:.7rem 1rem; margin-bottom:1rem; font-size:.88rem; line-height:1.8; }
+  .re-alertes ul { margin:.2rem 0 0; padding-inline-start:1.2rem; }
+
+  /* ── la feuille : toujours du papier blanc, quel que soit le thème ── */
+  .re-feuille { background:#fff; color:#111; max-width:21cm; margin:0 auto 5.5rem;
+                padding:1.3cm 1.3cm 1.6cm 1.5cm; box-shadow:0 4px 22px rgba(0,0,0,.18);
+                border-radius:3px; font-family:Arial, 'Noto Sans Arabic', sans-serif; font-size:15px; }
+  .re-haut { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; }
+  .re-ent { text-align:center; font-weight:700; font-size:.8em; line-height:1.75; }
+  .re-date { font-weight:700; font-size:.8em; display:flex; align-items:center; gap:.3rem; }
+  .re-date input { width:7.5rem; font:inherit; border:1px dashed #9ab; border-radius:4px; padding:.1rem .3rem;
+                   background:#fbfdff; color:#111; direction:ltr; text-align:center; }
+  .re-h { font-weight:700; text-decoration:underline; margin:1.1em 0 .45em; font-size:1em; }
+  .re-champ { position:relative; margin:.15em 0 .5em; }
+  .re-champ textarea { width:100%; border:1px dashed transparent; border-radius:5px; background:transparent;
+                       color:#111; font:inherit; line-height:1.95; text-align:justify; resize:none;
+                       padding:.15em .35em; overflow:hidden; text-indent:1cm; }
+  .re-champ textarea:hover { border-color:#b8c7da; background:#fbfdff; }
+  .re-champ textarea:focus { outline:none; border-color:#3b82f6; background:#f5f9ff;
+                             box-shadow:0 0 0 3px rgba(59,130,246,.15); }
+  .re-champ--liste textarea, .re-champ--taches textarea { text-indent:0; }
+  .re-champ--titre textarea { font-size:1.35em; font-weight:700; text-align:center; text-indent:0; line-height:1.6; }
+  .re-champ--libre textarea { border-color:#f59e0b; background:#fffdf5; }
+  .re-champ__etat { display:none; position:absolute; top:-.55em; inset-inline-start:.4em; font-size:.68em;
+                    background:#fef3c7; color:#92400e; border-radius:999px; padding:0 .45em; }
+  .re-champ--modifie .re-champ__etat { display:inline-block; }
+  .re-aide { font-size:.72em; color:#6b7280; margin:-.2em 0 .5em; }
+  .re-tab { border-collapse:collapse; margin:.6em auto 1em; font-weight:700; }
+  .re-tab td { border:1px solid #333; text-align:center; padding:.3em .2em; line-height:1.35; }
+  .re-tab__bandeau { background:#8DB3E2; }
+  .re-tab__clair { background:#DBE5F1; }
+  .re-signature { display:flex; justify-content:flex-end; margin-top:2.2em; }
+  .re-signature > div { width:62%; text-align:center; }
+  .re-signature input { width:100%; text-align:center; font:inherit; font-weight:700; border:1px dashed transparent;
+                        background:transparent; color:#111; padding:.2em; margin-bottom:.5em; }
+  .re-signature input:hover, .re-signature input:focus { border-color:#b8c7da; background:#fbfdff; outline:none; }
+
+  .re-barre { position:fixed; bottom:0; inset-inline:0; z-index:40; display:flex; gap:.6rem; justify-content:center;
+              flex-wrap:wrap; padding:.65rem 1rem; background:var(--card-bg); border-top:1px solid var(--border);
+              box-shadow:0 -4px 16px rgba(0,0,0,.08); }
+  .re-barre .btn { min-width:9rem; }
+  .re-etat-sauv { align-self:center; font-size:.8rem; color:var(--text-light); min-width:8rem; }
+  @media (max-width: 760px) { .re-feuille { padding:.8cm .6cm; font-size:14px; } .re-haut { flex-direction:column; } }
+</style>
+
+<div class="page-header re-entete">
+  <h1>📝 التّقرير الكتابي لنشاط المركز</h1>
+  <a class="btn btn-cancel no-print" href="{{ url_for('rapports', **params) }}">📊 التّقرير البياني لنفس الفترة</a>
+</div>
+
+<form method="GET" action="{{ url_for('rapport_ecrit') }}" class="card re-periode" id="formPeriode">
+  <label>نوع التّقرير
+    <select name="type" class="form-control" id="selType">
+      <option value="trimestre" {{ 'selected' if p.type == 'trimestre' }}>ثلاثي</option>
+      <option value="semestre" {{ 'selected' if p.type == 'semestre' }}>نصف سنوي</option>
+      <option value="annee" {{ 'selected' if p.type == 'annee' }}>سنوي</option>
+      <option value="plage" {{ 'selected' if p.type == 'plage' }}>فترة محدّدة</option>
+    </select>
+  </label>
+  <label data-pour="cal">السّنة
+    <input type="number" name="annee" class="form-control" min="2000" max="2100" value="{{ p.annee }}">
+  </label>
+  <label data-pour="n">الفترة
+    <select name="n" class="form-control" id="selN" data-valeur="{{ p.n or 1 }}"></select>
+  </label>
+  <label data-pour="plage">من
+    <input type="date" name="debut" class="form-control" value="{{ p.debut }}">
+  </label>
+  <label data-pour="plage">إلى
+    <input type="date" name="fin" class="form-control" value="{{ p.fin }}">
+  </label>
+  <button type="submit" class="btn btn-primary">عرض التّقرير</button>
+  <a href="{{ url_for('parametres_rapports') }}" class="btn btn-cancel" style="margin-inline-start:auto;">⚙ إعدادات التّقارير</a>
+</form>
+
+<div class="re-chiffres" aria-label="أهمّ الأرقام">
+  <div class="re-chiffre"><b>{{ c.chiffres.activites }}</b>نشاطا منجزا</div>
+  <div class="re-chiffre"><b>{{ c.chiffres.jours }}</b>يوم تكوين</div>
+  <div class="re-chiffre"><b>{{ c.chiffres.participants }}</b>مشاركا</div>
+  <div class="re-chiffre"><b>{{ c.chiffres.absents }}</b>غيابا</div>
+  <div class="re-chiffre"><b>{{ c.chiffres.formateurs }}</b>مكوّنا</div>
+  <div class="re-chiffre"><b>{{ c.chiffres.taux_realisation if c.chiffres.taux_realisation is not none else '—' }}%</b>نسبة الإنجاز</div>
+</div>
+
+{% if c.alertes %}
+  <div class="re-alertes" role="status"><b>⚠ قبل الطّبع:</b>
+    <ul>{% for a in c.alertes %}<li>{{ a }}</li>{% endfor %}</ul>
+  </div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('rapport_ecrit_brouillon') }}" id="formRapport" autocomplete="off">
+  <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+  <input type="hidden" name="action" value="enregistrer" id="champAction">
+  {% for k, v in params.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+
+  <div class="re-feuille" id="feuille">
+    <div class="re-haut">
+      <div class="re-ent">{% for l in c.entete %}<div>{{ l }}</div>{% endfor %}</div>
+      <div class="re-date">
+        {{ (c.ligne_date.split(' في:')[0] ~ ' في:') if ' في:' in c.ligne_date else '' }}
+        <input type="text" name="date" value="{{ c.textes.date }}" data-auto="{{ c.auto.date }}" aria-label="تاريخ التّقرير">
+      </div>
+    </div>
+    <div style="height:2.2em"></div>
+    {{ champ('titre', 2, 're-champ--titre') }}
+    <div style="height:2em"></div>
+
+    <div class="re-h">1. المهامّ والتّنظيم الهيكلي:</div>
+    {{ champ('intro1', 3) }}
+    <div class="re-h">1.1 صلاحيّات {{ c.nom_centre }}:</div>
+    <div class="re-aide">سطر تمهيدي، ثمّ سطر يبدأ بـ«-» لكلّ صلاحيّة.</div>
+    {{ champ('taches', 7, 're-champ--taches') }}
+    <div class="re-h">2.1 التّنظيم الهيكلي {{ ('لل' ~ c.nom_centre[2:]) if c.nom_centre.startswith('ال') else ('ل' ~ c.nom_centre) }}:</div>
+    {{ champ('structure', 2) }}
+
+    <div class="re-h">2. الموارد البشريّة:</div>
+    {{ champ('rh', 2) }}
+    {{ tableau(c.tableaux.rh) }}
+    <div class="re-aide">ملاحظة اختياريّة بعد الجدول (تُترك فارغة إن لم تلزم):</div>
+    {{ champ('rh_note', 2) }}
+
+    <div class="re-h">3. الأنشطة التّكوينيّة المنجزة :</div>
+    {{ champ('act_intro', 4) }}
+    {{ tableau(c.tableaux.categories) }}
+    {{ champ('act_repartition', 3) }}
+    {{ champ('realisation', 3) }}
+    {{ champ('part_intro', 3) }}
+    {{ tableau(c.tableaux.participants) }}
+    {{ champ('part_moyenne', 3) }}
+    <div class="re-aide">✓ عنصر في كلّ سطر:</div>
+    {{ champ('part_puces', 4, 're-champ--liste') }}
+    {{ champ('part_sexe', 4) }}
+    {{ champ('presence', 4) }}
+    {{ tableau(c.tableaux.presence) }}
+    {{ champ('absences', 4) }}
+    {{ champ('form_intro', 3) }}
+    {{ tableau(c.tableaux.formateurs) }}
+    {{ champ('form_sexe', 3) }}
+
+    <div class="re-h">4. الصّعوبات والإشكاليّات</div>
+    <div style="text-indent:1cm;margin-bottom:.3em">تتمثّل الصّعوبات والإشكاليّات فيما يلي:</div>
+    <div class="re-aide">▪ صعوبة في كلّ سطر — تُكتب يدويّا:</div>
+    {{ champ('difficultes', 4, 're-champ--liste re-champ--libre') }}
+    <div class="re-h">5. المقترحات:</div>
+    <div class="re-aide">▪ مقترح في كلّ سطر — يُكتب يدويّا:</div>
+    {{ champ('propositions', 4, 're-champ--liste re-champ--libre') }}
+
+    <div class="re-signature"><div>
+      <input type="text" name="signature_titre" value="{{ c.textes.signature_titre }}" data-auto="{{ c.auto.signature_titre }}" aria-label="صفة الممضي">
+      <input type="text" name="signature_nom" value="{{ c.textes.signature_nom }}" data-auto="{{ c.auto.signature_nom }}" aria-label="رتبة الممضي واسمه">
+    </div></div>
+  </div>
+
+  <div class="re-barre no-print">
+    <span class="re-etat-sauv" id="etatSauv">{{ 'مسودّة محفوظة' if c.modifies else 'نصوص آليّة' }}</span>
+    <button type="button" class="btn btn-save" id="btnSauver">💾 حفظ المسودّة</button>
+    <button type="button" class="btn btn-primary" id="btnPdf">📄 معاينة PDF</button>
+    <button type="button" class="btn btn-primary" id="btnWord">📝 تنزيل Word</button>
+    <button type="button" class="btn btn-cancel" id="btnReinit">↺ استرجاع النّصوص الآليّة</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+  const q = new URLSearchParams({{ params | tojson }});
+  const URL_PDF = {{ url_for('rapport_ecrit_pdf') | tojson }} + '?' + q.toString();
+  const URL_WORD = {{ url_for('rapport_ecrit_word') | tojson }} + '?' + q.toString();
+
+  /* ── sélecteur de période ── */
+  const selType = document.getElementById('selType');
+  const selN = document.getElementById('selN');
+  const OPTIONS = { trimestre: ['الثّلاثي الأوّل', 'الثّلاثي الثّاني', 'الثّلاثي الثّالث', 'الثّلاثي الرّابع'],
+                    semestre: ['السّداسي الأوّل', 'السّداسي الثّاني'] };
+  function majPeriode() {
+    const t = selType.value;
+    const liste = OPTIONS[t] || [];
+    const actuel = selN.value || selN.dataset.valeur;
+    selN.innerHTML = liste.map(function (lib, i) {
+      return '<option value="' + (i + 1) + '"' + (String(i + 1) === String(actuel) ? ' selected' : '') + '>' + lib + '</option>';
+    }).join('');
+    document.querySelectorAll('#formPeriode [data-pour]').forEach(function (el) {
+      const pour = el.dataset.pour;
+      const visible = (pour === 'plage') ? t === 'plage' : (pour === 'n' ? liste.length > 0 : t !== 'plage');
+      el.hidden = !visible;
+      el.querySelectorAll('input, select').forEach(function (i) { i.disabled = !visible; });
+    });
+  }
+  selType.addEventListener('change', majPeriode);
+  majPeriode();
+
+  /* ── champs : hauteur automatique et repérage des retouches ── */
+  const form = document.getElementById('formRapport');
+  const etat = document.getElementById('etatSauv');
+  let modifie = false;
+  function ajuster(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }
+  form.querySelectorAll('textarea').forEach(function (t) {
+    ajuster(t);
+    t.addEventListener('input', function () {
+      ajuster(t);
+      const bloc = t.closest('.re-champ');
+      if (bloc) bloc.classList.toggle('re-champ--modifie', t.value.trim() !== (t.dataset.auto || '').trim()
+                                      && !bloc.classList.contains('re-champ--libre'));
+    });
+  });
+  window.addEventListener('resize', function () { form.querySelectorAll('textarea').forEach(ajuster); });
+  form.addEventListener('input', function () { modifie = true; etat.textContent = 'تعديلات غير محفوظة…'; });
+  window.addEventListener('beforeunload', function (e) { if (modifie) { e.preventDefault(); e.returnValue = ''; } });
+
+  /* ── enregistrement (fetch), puis PDF / Word ── */
+  function sauver(action) {
+    const fd = new FormData(form);
+    fd.set('action', action || 'enregistrer');
+    etat.textContent = 'جاري الحفظ…';
+    return fetch(form.getAttribute('action'), { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok || !j.ok) throw new Error(j.message || 'تعذّر الحفظ'); return j; }); })
+      .then(function (j) { modifie = false; etat.textContent = j.message; return j; })
+      .catch(function (e) { etat.textContent = 'تعذّر الحفظ'; showToast(e.message, 'error'); throw e; });
+  }
+  document.getElementById('btnSauver').addEventListener('click', function () {
+    sauver().then(function (j) { showToast(j.message); });
+  });
+  document.getElementById('btnPdf').addEventListener('click', function () {
+    sauver().then(function () { window.ouvrirPdf(URL_PDF + '&_=' + Date.now()); });
+  });
+  document.getElementById('btnWord').addEventListener('click', function () {
+    sauver().then(function () { window.location.href = URL_WORD; });
+  });
+  document.getElementById('btnReinit').addEventListener('click', function () {
+    showConfirmModal('استرجاع كلّ النّصوص الآليّة لهذه الفترة؟ تُحذف التّعديلات اليدويّة ونصوص الفقرتين 4 و5.', function () {
+      sauver('reinitialiser').then(function () { modifie = false; location.reload(); });
+    });
+  });
+})();
+</script>
+{% endblock %}

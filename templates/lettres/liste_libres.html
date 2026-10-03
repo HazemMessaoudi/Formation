@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}المراسلات الحرة{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+  <h1>✉️ المراسلات الحرة المسجَّلة</h1>
+  <div style="display:flex;gap:.6rem;">
+    <a href="{{ url_for('nouvelle_lettre_libre') }}" class="btn btn-add">➕ مراسلة حرة جديدة</a>
+  </div>
+</div>
+
+{% if lettres %}
+<div class="card" style="padding:0;overflow:hidden;">
+  <table class="list-table table-triable" data-renumeroter>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>المرجع</th>
+        <th>النوع</th>
+        <th>الموضوع</th>
+        <th>الموجَّهة إلى</th>
+        <th>الشهر / السنة</th>
+        <th>تاريخ الإنشاء</th>
+        <th data-tri="non">إجراءات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lettres %}
+      <tr>
+        <td class="num-cell">{{ loop.index }}</td>
+        <td dir="ltr"><strong>{{ l.ref_complet or '—' }}</strong></td>
+        <td>
+          <span class="badge {% if l.type=='interne' %}badge-blue{% else %}badge-green{% endif %}">
+            {{ 'داخلية' if l.type=='interne' else 'خارجية' }}
+          </span>
+        </td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ l.objet or '' }}">
+          {{ l.objet or '—' }}
+        </td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ l.destinataire or '' }}">
+          {{ l.destinataire or '—' }}
+        </td>
+        <td>{{ l.mois }} {{ l.annee }}</td>
+        <td dir="ltr">{{ l.date_creation[:10] if l.date_creation else '—' }}</td>
+        <td class="actions-td">
+          <a href="{{ url_for('detail_lettre', lettre_id=l.id) }}" class="btn-action btn-view" title="عرض">👁</a>
+          {% if l.verrouille %}
+          <span class="btn-action" title="مُغلقة" style="background:#6b7280;color:#fff;cursor:default;">🔒</span>
+          {% else %}
+          <a href="{{ url_for('nouvelle_lettre_libre') }}?modifier={{ l.id }}" class="btn-action" title="تعديل" style="background:var(--accent);color:#fff;">✏️</a>
+          {% endif %}
+          {% if l.ref_complet %}
+          <a href="{{ url_for('generer_lettre_libre', lettre_id=l.id) }}" target="_blank" class="btn-action btn-edit" title="PDF">📄</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-msg">
+  لا توجد مراسلات حرة مسجَّلة بعد.
+  <a href="{{ url_for('nouvelle_lettre_libre') }}">أنشئ أول مراسلة</a>
+</div>
+{% endif %}
+{% endblock %}

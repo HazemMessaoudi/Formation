@@ -1,0 +1,188 @@
+{% extends "base_parametres.html" %}
+{% block title %}هويّة المركز{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom:.4rem;">
+  <h1>🏛 هويّة المركز</h1>
+</div>
+<p style="color:var(--text-muted);margin-bottom:1.3rem;line-height:1.7;">
+  هذه المعطيات هي كلّ ما يميّز مركزا عن آخر: تُستعمل في ترويسات الوثائق،
+  وفي الإمضاء، وفي وجهة مراسلة المدير الجهوي.
+  <strong>كلّ ما يُكتب هنا يظهر حرفيّا في الوثائق</strong> — لا يضيف النظام
+  ولا يحذف أيّ حرف، فاكتب الصّيغة الصّحيحة كاملة.
+</p>
+
+<form method="POST" autocomplete="off">
+  <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+
+  <!-- ── 1. المركز ─────────────────────────────────────────────────────── -->
+  <div class="card" style="padding:1.2rem 1.3rem;margin-bottom:1.1rem;">
+    <h2 style="font-size:1.05rem;margin:0 0 1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem;">
+      1 — المركز
+    </h2>
+
+    <div class="form-group">
+      <label for="nom_centre">اسم المركز</label>
+      <input type="text" id="nom_centre" name="nom_centre" class="form-control"
+             value="{{ config.nom_centre }}"
+             placeholder="مثال: مركز التكوين الديواني بالقصرين">
+      <small style="color:var(--text-muted);">يظهر في ترويسة المراسلات والقائمة الإسمية والبطاقة البيداغوجية.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="nom_centre_ba">اسم المركز مسبوقا بحرف الجرّ «بـ»</label>
+      <input type="text" id="nom_centre_ba" name="nom_centre_ba" class="form-control"
+             value="{{ config.nom_centre_ba }}"
+             placeholder="مثال: بمركز التكوين الديواني بالقصرين">
+      <small style="color:var(--text-muted);">
+        يُكتب يدويّا ولا يُشتقّ آليّا: «بنزرت» مثلا تصير «ببنزرت» وليس «بنزرت».
+      </small>
+    </div>
+
+    <div class="form-group">
+      <label for="ville_centre">المدينة</label>
+      <input type="text" id="ville_centre" name="ville_centre" class="form-control"
+             value="{{ config.ville_centre }}" placeholder="مثال: القصرين">
+      <small style="color:var(--text-muted);">تُستعمل في سطر التّاريخ: «القصرين في 12 جانفي 2026».</small>
+    </div>
+
+    <div class="form-group">
+      <label for="entete_centre_1">ترويسة المركز — السّطر الأوّل</label>
+      <input type="text" id="entete_centre_1" name="entete_centre_1" class="form-control"
+             value="{{ config.entete_centre_1 }}"
+             placeholder="مثال: المركز الجهوي للتّكوين الدّيواني">
+    </div>
+
+    <div class="form-group">
+      <label for="entete_centre_2">ترويسة المركز — السّطر الثّاني</label>
+      <input type="text" id="entete_centre_2" name="entete_centre_2" class="form-control"
+             value="{{ config.entete_centre_2 }}"
+             placeholder="مثال: بالوسط الغربي والقصرين">
+      <small style="color:var(--text-muted);">السّطران يظهران أسفل الترويسة الوطنيّة في برنامج الدّورة.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="lieu_formation_defaut">قاعة التّكوين المقترحة تلقائيّا</label>
+      <input type="text" id="lieu_formation_defaut" name="lieu_formation_defaut" class="form-control"
+             value="{{ config.lieu_formation_defaut }}"
+             placeholder="مثال: مركز التكوين الجهوي بالقصرين">
+    </div>
+  </div>
+
+  <!-- ── 2. المسؤول الممضي ────────────────────────────────────────────── -->
+  <div class="card" style="padding:1.2rem 1.3rem;margin-bottom:1.1rem;">
+    <h2 style="font-size:1.05rem;margin:0 0 1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem;">
+      2 — المسؤول الممضي
+    </h2>
+    <p style="color:#b45309;font-size:.87rem;margin:0 0 1rem;line-height:1.6;">
+      ⚠️ يظهر هذا الاسم أسفل كلّ مراسلة يُمضيها المركز. تأكّد من صحّته قبل أيّ طبع.
+    </p>
+
+    <div class="form-group">
+      <label for="titre_responsable">الرّتبة</label>
+      <input type="text" id="titre_responsable" name="titre_responsable" class="form-control"
+             value="{{ config.titre_responsable }}" placeholder="مثال: النقيب">
+    </div>
+
+    <div class="form-group">
+      <label for="nom_responsable">الاسم واللّقب</label>
+      <input type="text" id="nom_responsable" name="nom_responsable" class="form-control"
+             value="{{ config.nom_responsable }}" placeholder="الاسم الكامل">
+    </div>
+  </div>
+
+  <!-- ── 3. جهات الارتباط ─────────────────────────────────────────────── -->
+  <div class="card" style="padding:1.2rem 1.3rem;margin-bottom:1.1rem;">
+    <h2 style="font-size:1.05rem;margin:0 0 1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem;">
+      3 — جهات الارتباط
+    </h2>
+
+    <div class="form-group">
+      <label for="destination_dr">وجهة مراسلة المدير الجهوي</label>
+      <input type="text" id="destination_dr" name="destination_dr" class="form-control"
+             value="{{ config.destination_dr }}"
+             placeholder="مثال: السيد المدير الجهوي للديوانة بالوسط الغربي">
+      <small style="color:var(--text-muted);">تُقترح تلقائيّا في المرحلة 2، ويمكن تغييرها عند كلّ مراسلة.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="admin_regionale">الإدارة الجهويّة للدّيوانة</label>
+      <input type="text" id="admin_regionale" name="admin_regionale" class="form-control"
+             value="{{ config.admin_regionale }}"
+             placeholder="مثال: الإدارة الجهويّة للدّيوانة بالقصرين">
+    </div>
+
+    <div class="form-group">
+      <label for="unite_garde">وحدة الحرس الدّيواني</label>
+      <input type="text" id="unite_garde" name="unite_garde" class="form-control"
+             value="{{ config.unite_garde }}"
+             placeholder="مثال: الوحدة الرّابعة للحرس الدّيواني بقفصة">
+    </div>
+  </div>
+
+  <!-- ── 4. المعطيات الوطنيّة ─────────────────────────────────────────── -->
+  <div class="card" style="padding:1.2rem 1.3rem;margin-bottom:1.1rem;">
+    <h2 style="font-size:1.05rem;margin:0 0 .5rem;border-bottom:1px solid var(--border);padding-bottom:.5rem;">
+      4 — المعطيات الوطنيّة
+    </h2>
+    <p style="color:var(--text-muted);font-size:.87rem;margin:0 0 1rem;">
+      مشتركة بين كلّ المراكز — لا تُغيَّر إلاّ عند تغيّرها فعليّا على المستوى الوطني.
+    </p>
+
+    <div class="form-group">
+      <label for="ref_prefix">بادئة المرجع</label>
+      <input type="text" id="ref_prefix" name="ref_prefix" class="form-control"
+             value="{{ config.ref_prefix }}" dir="ltr" style="text-align:left;">
+    </div>
+
+    <div class="form-group">
+      <label for="titre_directeur_general">رتبة المدير العام</label>
+      <input type="text" id="titre_directeur_general" name="titre_directeur_general"
+             class="form-control" value="{{ config.titre_directeur_general }}">
+    </div>
+
+    <div class="form-group">
+      <label for="nom_directeur_general">اسم المدير العام</label>
+      <input type="text" id="nom_directeur_general" name="nom_directeur_general"
+             class="form-control" value="{{ config.nom_directeur_general }}">
+    </div>
+
+    <div class="form-group">
+      <label for="ecole_adresse">عنوان المدرسة الوطنيّة</label>
+      <input type="text" id="ecole_adresse" name="ecole_adresse" class="form-control"
+             value="{{ config.ecole_adresse }}">
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.9rem;">
+      <div class="form-group">
+        <label for="ecole_tel">الهاتف</label>
+        <input type="text" id="ecole_tel" name="ecole_tel" class="form-control"
+               value="{{ config.ecole_tel }}" dir="ltr" style="text-align:left;">
+      </div>
+      <div class="form-group">
+        <label for="ecole_fax">الفاكس</label>
+        <input type="text" id="ecole_fax" name="ecole_fax" class="form-control"
+               value="{{ config.ecole_fax }}" dir="ltr" style="text-align:left;">
+      </div>
+      <div class="form-group">
+        <label for="ecole_email">البريد الإلكتروني</label>
+        <input type="text" id="ecole_email" name="ecole_email" class="form-control"
+               value="{{ config.ecole_email }}" dir="ltr" style="text-align:left;">
+      </div>
+      <div class="form-group">
+        <label for="ecole_web">الموقع</label>
+        <input type="text" id="ecole_web" name="ecole_web" class="form-control"
+               value="{{ config.ecole_web }}" dir="ltr" style="text-align:left;">
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;margin-bottom:2rem;">
+    <button type="submit" class="btn btn-add">💾 حفظ هويّة المركز</button>
+    <a href="{{ url_for('parametres') }}" class="btn">↩ رجوع إلى الإعدادات</a>
+    <span style="color:var(--text-muted);font-size:.85rem;margin-right:auto;">
+      {{ version_label }}
+    </span>
+  </div>
+</form>
+{% endblock %}

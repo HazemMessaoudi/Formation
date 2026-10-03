@@ -1,0 +1,228 @@
+{#
+  خطوة من خطوات معالج التّنصيب.
+
+  هذا الگابار قائم بذاته ولا يرث base.html عن قصد: ما دام التّنصيب لم يتمّ،
+  كلّ روابط القائمة تؤدّي إلى صفحات محجوبة، فعرضها تشويش لا فائدة فيه.
+#}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" translate="no">
+<head>
+  <meta charset="UTF-8">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تنصيب المنظومة — الخطوة {{ rang_affiche }} من {{ nb_etapes }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <style>
+    body { background: var(--bg); }
+    .inst-wrap { max-width: 720px; margin: 0 auto; padding: 2rem 1.2rem 3rem; }
+    .inst-entete { text-align: center; margin-bottom: 1.6rem; }
+    .inst-entete h1 { font-size: 1.35rem; color: var(--primary-txt, var(--primary)); margin-bottom: .3rem; }
+    .inst-entete p { color: var(--text-light); font-size: .92rem; }
+    .inst-jauge { height: 8px; background: var(--border); border-radius: 99px;
+                  overflow: hidden; margin: 1rem 0 .4rem; }
+    .inst-jauge span { display: block; height: 100%; background: var(--primary);
+                       border-radius: 99px; transition: width .3s; }
+    .inst-rang { text-align: center; font-size: .85rem; color: var(--text-light); }
+    .inst-question { font-size: 1.08rem; font-weight: bold; color: var(--text);
+                     margin-bottom: .5rem; line-height: 1.7; }
+    .inst-aide { font-size: .88rem; color: var(--text-light); line-height: 1.8;
+                 background: var(--card-bg); border-right: 3px solid var(--primary-l);
+                 padding: .7rem .9rem; border-radius: 6px; margin-bottom: 1.3rem; }
+    .inst-champs { display: flex; flex-direction: column; gap: 1.1rem; }
+    .inst-exemple { font-size: .82rem; color: var(--text-light); }
+    .inst-pied { display: flex; justify-content: space-between; align-items: center;
+                 gap: 1rem; margin-top: 1.6rem; }
+    .inst-retour { color: var(--text-light); text-decoration: none; font-size: .9rem; }
+    .inst-retour:hover { color: var(--primary-txt, var(--primary)); }
+    .inst-copyright { text-align: center; color: var(--text-light);
+                      font-size: .8rem; margin-top: 2rem; }
+
+    /* ── رمز المركز ──────────────────────────────────────────────────────── */
+    .code-centre-wrap {
+      display: flex; align-items: center; gap: .5rem; direction: ltr;
+      flex-wrap: nowrap;
+    }
+    .code-centre-prefix {
+      font-weight: bold; color: var(--text); font-size: 1rem;
+      white-space: nowrap; letter-spacing: .5px;
+    }
+    .code-centre-wrap input {
+      width: 4.2rem; text-align: center; font-size: 1rem;
+      direction: ltr; padding: .4rem;
+    }
+
+    /* ── قائمة منسدلة + زرّ إضافة ───────────────────────────────────────── */
+    .select-plus-wrap { display: flex; gap: .45rem; align-items: center; }
+    .select-plus-wrap select { flex: 1; }
+    .btn-plus {
+      width: 2.3rem; height: 2.3rem; border-radius: 50%; border: none;
+      background: var(--primary); color: #fff; font-size: 1.3rem;
+      cursor: pointer; line-height: 1; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .2s;
+    }
+    .btn-plus:hover { background: var(--primary-d); }
+    .extra-input-wrap { margin-top: .45rem; display: none; }
+    .extra-input-wrap.visible { display: block; }
+    .extra-input-wrap > label { font-size: .85rem; color: var(--text-light);
+                                display: block; margin-bottom: .25rem; }
+  </style>
+</head>
+<body>
+  <div class="inst-wrap">
+
+    <div class="inst-entete">
+      <h1>تنصيب المنظومة</h1>
+      <p>أسئلة تُطرح مرّة واحدة لتتعرّف المنظومة على مركزكم</p>
+      <div class="inst-jauge">
+        <span style="width: {{ (rang_affiche * 100 // nb_etapes) }}%"></span>
+      </div>
+      <div class="inst-rang">الخطوة {{ rang_affiche }} من {{ nb_etapes }}</div>
+    </div>
+
+    {% if erreurs %}
+      <div class="alert alert-error">
+        <ul style="margin:0; padding-inline-start:1.2rem;">
+          {% for e in erreurs %}<li>{{ e }}</li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-title">{{ etape.titre }}</div>
+
+      <p class="inst-question">{{ etape.question }}</p>
+      {% if etape.aide %}<div class="inst-aide">{{ etape.aide }}</div>{% endif %}
+
+      <form method="post" action="{{ url_for('installation_etape', numero=etape.numero) }}"
+            autocomplete="off">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+
+        <div class="inst-champs">
+
+          {# ── رمز المركز ─────────────────────────────────────────────────── #}
+          {% if etape.type == 'code_centre' %}
+            <div class="form-group">
+              <label>رمز المركز <span class="req">*</span></label>
+              <div class="code-centre-wrap">
+                <span class="code-centre-prefix">END-3-</span>
+                <input name="_code_part1" type="text" maxlength="2" placeholder="01"
+                       value="{{ valeurs.get('_code_part1', '01') }}"
+                       style="direction:ltr" autofocus>
+                <span class="code-centre-prefix">-</span>
+                <input name="_code_part2" type="text" maxlength="2" placeholder="02"
+                       value="{{ valeurs.get('_code_part2', '02') }}"
+                       style="direction:ltr">
+              </div>
+              <span class="inst-exemple">مثال: END-3-<strong>01</strong>-<strong>02</strong> للقصرين</span>
+            </div>
+
+          {# ── أرقام الانطلاق ─────────────────────────────────────────────── #}
+          {% elif etape.type == 'numeros' %}
+            {% for champ in etape.champs %}
+              <div class="form-group">
+                <label for="ch-{{ champ.cle }}">
+                  {{ champ.label }}{% if champ.obligatoire %} <span class="req">*</span>{% endif %}
+                </label>
+                <input id="ch-{{ champ.cle }}" name="{{ champ.cle }}"
+                       type="number" min="1" step="1"
+                       value="{{ valeurs.get(champ.cle, '') }}"
+                       {% if loop.first %}autofocus{% endif %}>
+              </div>
+            {% endfor %}
+
+          {# ── خطوات عادية (نصّ أو قائمة) ────────────────────────────────── #}
+          {% else %}
+            {% for champ in etape.champs %}
+              <div class="form-group">
+                <label for="ch-{{ champ.cle }}">
+                  {{ champ.label }}{% if champ.obligatoire %} <span class="req">*</span>{% endif %}
+                </label>
+
+                {% if champ.type_champ == 'select' %}
+                  {# قائمة منسدلة #}
+                  <div class="select-plus-wrap">
+                    <select id="ch-{{ champ.cle }}" name="{{ champ.cle }}"
+                            {% if loop.first %}autofocus{% endif %}>
+                      <option value="">— اختر —</option>
+                      {% for opt in champ.options_liste %}
+                        <option value="{{ opt }}"
+                          {% if valeurs.get(champ.cle) == opt %}selected{% endif %}>
+                          {{ opt }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    {% if champ.allow_new %}
+                      <button type="button" class="btn-plus"
+                              onclick="toggleExtra('{{ champ.cle }}')"
+                              title="إضافة خيار جديد">+</button>
+                    {% endif %}
+                  </div>
+                  {% if champ.allow_new %}
+                    <div class="extra-input-wrap" id="extra-wrap-{{ champ.cle }}">
+                      <label>أضف خيارا جديدا:</label>
+                      <input type="text" name="_extra_{{ champ.cle }}"
+                             id="extra-{{ champ.cle }}"
+                             placeholder="{{ champ.exemple or '' }}">
+                    </div>
+                  {% endif %}
+
+                {% else %}
+                  {# نصّ عادي #}
+                  <input id="ch-{{ champ.cle }}" name="{{ champ.cle }}"
+                         type="text"
+                         value="{{ valeurs.get(champ.cle, '') }}"
+                         {% if loop.first %}autofocus{% endif %}>
+                {% endif %}
+
+                {% if champ.exemple %}
+                  <span class="inst-exemple">مثال: {{ champ.exemple }}</span>
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% endif %}
+
+        </div>{# /inst-champs #}
+
+        <div class="inst-pied">
+          {% if numero_precedent %}
+            <a class="inst-retour"
+               href="{{ url_for('installation_etape', numero=numero_precedent) }}">↷ الخطوة السّابقة</a>
+          {% else %}
+            <span></span>
+          {% endif %}
+          <button type="submit" class="btn btn-generate">
+            {% if rang_affiche >= nb_etapes %}مراجعة الأجوبة{% else %}حفظ ومتابعة{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="inst-copyright">
+      يُحفظ كلّ جواب فور تقديمه — يمكنكم إيقاف التّنصيب واستئنافه لاحقا.
+    </div>
+  </div>
+
+  <script>
+    /**
+     * toggleExtra(cle) — يُبدّل بين القائمة المنسدلة وحقل الإضافة الحرّة.
+     * عند فتح حقل الإضافة: تُعطَّل القائمة (لا تُرسَل قيمتها) ويحصل الحقل على التركيز.
+     * عند إغلاقه: تُفعَّل القائمة من جديد ويُفرَّغ الحقل.
+     */
+    function toggleExtra(cle) {
+      var wrap = document.getElementById('extra-wrap-' + cle);
+      var sel  = document.getElementById('ch-' + cle);
+      var inp  = document.getElementById('extra-' + cle);
+      if (wrap.classList.contains('visible')) {
+        wrap.classList.remove('visible');
+        sel.disabled = false;
+        if (inp) inp.value = '';
+      } else {
+        wrap.classList.add('visible');
+        sel.disabled = true;
+        if (inp) inp.focus();
+      }
+    }
+  </script>
+</body>
+</html>

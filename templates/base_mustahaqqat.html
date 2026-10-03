@@ -1,0 +1,47 @@
+{# ═══════════════════════════════════════════════════════════════════════════
+   قسم المستحقّات المالية — نفس الهيكل، قائمة مختلفة (v1.0)
+
+   Le قسم des مستحقّات a sa propre barre : on n'y trouve QUE ce qui sert aux
+   مستحقّات. Le reste de la منظومة (base.html) n'est pas touché d'une ligne :
+   seul le bloc `navmenu` est redéfini.
+   ══════════════════════════════════════════════════════════════════════════ #}
+{% extends "base.html" %}
+
+{% block section_icone %}💰{% endblock %}
+{% block section_titre %}مستحقات مالية{% endblock %}
+
+{% block navmenu %}
+  <li class="nav-item">
+    <a href="{{ url_for('mustahaqqat_dashboard') }}"
+       class="nav-link {% if request.endpoint == 'mustahaqqat_dashboard' %}active{% endif %}">
+      <span class="nav-icon">📊</span> لوحة القيادة
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a href="{{ url_for('mustahaqqat_mkowin') }}"
+       class="nav-link {% if request.endpoint == 'mustahaqqat_mkowin' %}active{% endif %}">
+      <span class="nav-icon">👤</span> قائمة المكونين
+    </a>
+  </li>
+
+  <li class="nav-item dropdown">
+    <a href="#" class="nav-link dropdown-toggle
+       {% if request.endpoint in ['mustahaqqat_ghayr_manjaza','mustahaqqat_manjaza',
+                                  'mustahaqqat_hodour','mustahaqqat_qima'] %}active{% endif %}">
+      <span class="nav-icon">📋</span> برامج التكوين
+    </a>
+    <ul class="dropdown-menu">
+      <li><a href="{{ url_for('mustahaqqat_ghayr_manjaza') }}">🕓 برامج تكوين غير منجزة</a></li>
+      <li style="border-top:1px solid #eee;margin:.3rem 0;"></li>
+      <li><a href="{{ url_for('mustahaqqat_manjaza') }}">✅ برامج تكوين منجزة</a></li>
+    </ul>
+  </li>
+
+  {# Les deux jadwal vivent côte à côte : l'un dit le صنف, l'autre ce qu'il
+     paie. Les séparer en deux entrées évite qu'on cherche un prix dans le
+     tableau des أصناف. #}
+  {# جدول الأصناف، الجدول المالي وإعدادات وثائق الخلاص انتقلت كلّها إلى
+     قسم «الإعدادات» : هذا القسم للعمل اليومي، لا للضبط. #}
+
+{% endblock %}

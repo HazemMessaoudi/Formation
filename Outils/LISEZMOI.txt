@@ -1,0 +1,17 @@
+Outils — مُركِّب WebView2 (Microsoft Edge WebView2 Runtime)
+=============================================================
+
+ضع في هذا المجلّد المُركِّب الكامل غير المتّصل بالإنترنت :
+    MicrosoftEdgeWebView2RuntimeInstallerX64.exe   (حواسيب 64 بت)
+    MicrosoftEdgeWebView2RuntimeInstallerX86.exe   (حواسيب 32 بت، اختياري)
+
+المصدر : https://developer.microsoft.com/microsoft-edge/webview2/
+         ← Evergreen Standalone Installer
+
+عند التشغيل، إن لم يجد البرنامج WebView2 على حاسوب بنظام Windows 10 أو 11،
+يُثبّته في صمت من هذا المجلّد (مرّة كلّ 30 دقيقة على الأكثر)، ويفتح في
+الأثناء في Edge أو في المتصفّح. Windows 7 / 8 : يفتح البرنامج في المتصفّح.
+
+Le paquet source ne contient PAS l'installateur (≈ 200 Mo) : il est livré
+avec le programme prêt à l'emploi (dossier V1.0), et construire_exe.bat le
+recopie dans dist\FormationKasserine\Outils.

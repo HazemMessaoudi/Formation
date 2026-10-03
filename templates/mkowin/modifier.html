@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}تحيين بيانات – {{ mkow.nom }}{% if mkow.prenom %} {{ mkow.prenom }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>✏️ تحيين بيانات الشّخص</h1>
+</div>
+
+<div class="card">
+  <form method="post" autocomplete="off">
+
+    <div class="fiche-section-title" style="margin-bottom:.8rem;">🪪 المعلومات الشخصية</div>
+    <div class="form-grid-2">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>الإسم واللقب <span class="req">*</span></label>
+        <div style="display:flex;gap:.8rem;">
+          <select name="grade" style="flex:0 0 140px;" required>
+            <option value="">— الرتبة —</option>
+            {% for g in grades %}<option value="{{ g }}" {% if mkow.grade==g %}selected{% endif %}>{{ g }}</option>{% endfor %}
+          </select>
+          <input type="text" name="nom" value="{{ mkow.nom }}" required style="flex:1;" placeholder="الاسم">
+          <input type="text" name="prenom" value="{{ mkow.prenom or '' }}" style="flex:1;" placeholder="اللقب">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>رقم بطاقة التعريف الوطنية</label>
+        <input type="text" name="cin" data-verif="cin" inputmode="numeric" maxlength="12" value="{{ mkow.cin or '' }}" dir="ltr">
+      </div>
+      <div class="form-group">
+        <label>الصادرة بتاريخ</label>
+        <input type="date" name="cin_date" value="{{ mkow.cin_date or '' }}">
+      </div>
+
+      <div class="form-group">
+        <label>رقم المعرف الوحيد</label>
+        <input type="text" name="identifiant_unique" data-verif="chiffres" value="{{ mkow.identifiant_unique or '' }}" dir="ltr">
+      </div>
+      <div class="form-group">
+        <label>العنوان الشخصي</label>
+        <input type="text" name="adresse" value="{{ mkow.adresse or '' }}">
+      </div>
+
+      <div class="form-group">
+        <label>الهاتف الجوال</label>
+        <input type="text" name="telephone_gsm" data-verif="telephone" value="{{ mkow.telephone_gsm or '' }}" dir="ltr">
+      </div>
+      <div class="form-group">
+        <label>الهاتف الإداري</label>
+        <input type="text" name="telephone_adm" data-verif="telephone" value="{{ mkow.telephone_adm or '' }}" dir="ltr">
+      </div>
+
+      {# v1.6 — pour الإحصائيات فقط (jamais imprimés dans les وثائق) #}
+      <div class="form-group">
+        <label>الجنس</label>
+        <select name="sexe">
+          <option value="">— غير محدّد —</option>
+          {% for s in SEXES %}<option value="{{ s }}" {% if (mkow.sexe or '')|trim == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>الفئة العمريّة</label>
+        <select name="fiaa_omria">
+          <option value="">— غير محدّدة —</option>
+          {% for f in FIAAT %}<option value="{{ f }}" {% if (mkow.fiaa_omria or '')|trim == f %}selected{% endif %}>{{ f }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="fiche-section-title" style="margin:1.2rem 0 .8rem;">💼 المعلومات المهنية</div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>الشهادة العلمية</label>
+        <input type="text" name="diplome" list="dl_mk_diplome" autocomplete="off" value="{{ mkow.diplome or '' }}">
+      </div>
+      <div class="form-group">
+        <label>الرتبة / الدرجة</label>
+        <input type="text" name="degre" list="dl_mk_degre" autocomplete="off" value="{{ mkow.degre or '' }}">
+      </div>
+
+      <div class="form-group">
+        <label>الخطة الوظيفية</label>
+        <input type="text" name="plan_fonctionnel" list="dl_mk_plan_fonctionnel" autocomplete="off" value="{{ mkow.plan_fonctionnel or '' }}">
+      </div>
+      <div class="form-group">
+        <label>التخصص</label>
+        <input type="text" name="specialite" list="dl_mk_specialite" autocomplete="off" value="{{ mkow.specialite or '' }}">
+      </div>
+
+      <div class="form-group">
+        <label>الإدارة</label>
+        <input type="text" name="administration" list="dl_mk_administration" autocomplete="off" value="{{ mkow.administration or '' }}">
+      </div>
+      <div class="form-group">
+        <label>وزارة الإشراف</label>
+        <input type="text" name="ministere" list="dl_mk_ministere" autocomplete="off" value="{{ mkow.ministere or '' }}">
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>مكان العمل</label>
+        <input type="text" name="lieu_travail" list="dl_mk_lieu_travail" autocomplete="off" value="{{ mkow.lieu_travail or '' }}">
+      </div>
+    </div>
+
+    <div class="fiche-section-title" style="margin:1.2rem 0 .8rem;">🏦 التواصل والحساب البنكي</div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>البريد الإلكتروني</label>
+        <input type="text" name="email" data-verif="email" value="{{ mkow.email or '' }}" dir="ltr">
+      </div>
+      <div class="form-group" style="display:flex;gap:.6rem;align-items:flex-end;">
+        <div style="flex:2;"><label>البنك</label><input type="text" name="banque" list="dl_mk_banque" autocomplete="off" value="{{ mkow.banque or '' }}"></div>
+        <div style="flex:1;"><label>الفرع</label><input type="text" name="agence" list="dl_mk_agence" autocomplete="off" value="{{ mkow.agence or '' }}"></div>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>رقم الحساب البنكي / البريدي</label>
+        <input type="text" name="num_compte" data-verif="rib" inputmode="numeric" maxlength="30" value="{{ mkow.num_compte or '' }}" dir="ltr">
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top:.8rem;">
+      <label>ملاحظات</label>
+      <textarea name="notes" rows="3" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:.55rem .75rem;font-family:inherit;font-size:.95rem;resize:vertical;">{{ mkow.notes or '' }}</textarea>
+    </div>
+
+    <div class="actions-bar" style="gap:1rem;margin-top:1.5rem;">
+      <button type="submit" class="btn btn-save">💾 حفظ</button>
+      <a href="{{ url_for('fiche_mkow', mkow_id=mkow.id) }}" class="btn btn-cancel">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% include 'mkowin/_suggestions.html' %}
+{% endblock %}

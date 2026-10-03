@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}خطأ{% endblock %}
+
+{% block content %}
+<div style="max-width:620px;margin:3rem auto;text-align:center;">
+  <div style="font-size:3.2rem;margin-bottom:.6rem;">⚠️</div>
+  <h1 style="margin:0 0 .8rem;font-size:1.5rem;">تعذّر إتمام العمليّة</h1>
+  <p style="color:var(--text-muted);font-size:1rem;line-height:1.8;margin-bottom:1.6rem;">
+    {{ message or 'حدث خطأ غير متوقّع.' }}
+  </p>
+  <div style="display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap;">
+    <a href="{{ url_for('accueil') }}" class="btn btn-add">🏠 العودة إلى الشاشة الرئيسية</a>
+    <a href="javascript:history.back()" class="btn btn-cancel">↩ رجوع</a>
+  </div>
+  <p style="color:var(--text-muted);font-size:.82rem;margin-top:1.8rem;">
+    تفاصيل الخطأ مسجَّلة في <code dir="ltr">data/logs/application.log</code>
+  </p>
+</div>
+{% endblock %}

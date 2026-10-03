@@ -1,0 +1,307 @@
+{% extends "base_parametres.html" %}
+{% block title %}إعدادات التّقارير{% endblock %}
+
+{# V3 — Réglages du module التّقارير. Quatre cartes :
+     1. النصّ القانوني (section 1 du تقرير) ;
+     2. نصوص القسمين 1.1 / 1.2 — automatiques tant qu'on ne les modifie pas ;
+     3. جدول العديد — seule donnée demandée au premier lancement ;
+     4. عدد الدّورات المبرمجة par année (formulaires séparés).
+   Les cartes 1 à 3 partagent un seul formulaire (action « textes »). #}
+
+{% block content %}
+<style>
+  .rap-card { padding:1.2rem 1.3rem; margin-bottom:1.1rem; }
+  .rap-card h2 { font-size:1.05rem; margin:0 0 1rem; border-bottom:1px solid var(--border); padding-bottom:.5rem; }
+  .rap-note { color:var(--text-muted); font-size:.85rem; line-height:1.6; }
+  .rap-apercu { background:var(--bg-secondary, rgba(127,127,127,.07)); border:1px dashed var(--border);
+                border-radius:8px; padding:.6rem .8rem; line-height:1.8; font-size:.92rem; margin-bottom:1rem; }
+  .rap-etat { display:inline-block; font-size:.75rem; padding:.05rem .5rem; border-radius:999px;
+              margin-inline-start:.4rem; vertical-align:middle; }
+  .rap-etat--auto { background:#dcfce7; color:#166534; }
+  .rap-etat--modif { background:#fef3c7; color:#92400e; }
+  .rap-lien { background:none; border:none; color:var(--primary, #2563eb); cursor:pointer;
+              font-size:.82rem; padding:0; text-decoration:underline; }
+  textarea.form-control { line-height:1.75; resize:vertical; }
+
+  /* جدول العديد : 13 colonnes étroites, défilement horizontal si l'écran est petit */
+  .rh-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:8px; }
+  .rh-table { width:100%; border-collapse:collapse; font-size:.84rem; min-width:860px; }
+  .rh-table th, .rh-table td { border:1px solid var(--border); padding:.3rem .25rem; text-align:center; }
+  .rh-table thead th { background:var(--bg-secondary, rgba(127,127,127,.08)); font-weight:600; }
+  .rh-table .rh-groupe { font-size:.8rem; }
+  .rh-table input[type=number] { width:3.4rem; padding:.25rem; text-align:center;
+                                 border:1px solid var(--border); border-radius:5px;
+                                 background:var(--bg-card, #fff); color:inherit; }
+  .rh-table select { padding:.25rem; border:1px solid var(--border); border-radius:5px;
+                     background:var(--bg-card, #fff); color:inherit; }
+  .rh-table .rh-total { font-weight:700; min-width:2.6rem; }
+  .rh-table tfoot td { font-weight:700; background:var(--bg-secondary, rgba(127,127,127,.06)); }
+  .rh-ecart { color:#b45309; font-size:.8rem; margin-top:.4rem; min-height:1.1rem; }
+
+  .annees-table { width:100%; max-width:560px; border-collapse:collapse; font-size:.9rem; }
+  .annees-table th, .annees-table td { border-bottom:1px solid var(--border); padding:.45rem .5rem; text-align:right; }
+  .annees-table input[type=number] { width:6rem; }
+</style>
+
+<div class="page-header" style="margin-bottom:.4rem;">
+  <h1>📑 إعدادات التّقارير</h1>
+</div>
+<p style="color:var(--text-muted);margin-bottom:1.3rem;line-height:1.7;">
+  هذه المعطيات تُستعمل في التّقرير الكتابي لنشاط المركز (الثّلاثي، النّصف سنوي، السّنوي).
+  الأرقام الأخرى تُحتسب آليًّا من البرامج المنجزة، ويمكن مراجعة كلّ النّصوص من جديد في نافذة المعاينة قبل الطّبع.
+</p>
+
+<form method="POST" autocomplete="off" id="formRapports">
+  <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+  <input type="hidden" name="action" value="textes">
+
+  <!-- ── 1. النصّ القانوني ─────────────────────────────────────────────── -->
+  <div class="card rap-card">
+    <h2>1 — النصّ القانوني المرجعي</h2>
+    <div class="form-group">
+      <label for="rapport_texte_legal">النصّ القانوني المنظِّم</label>
+      <textarea id="rapport_texte_legal" name="rapport_texte_legal" class="form-control" rows="2"
+                data-defaut="{{ texte_legal_defaut }}">{{ texte_legal }}</textarea>
+      <small class="rap-note">
+        يُذكر في مقدّمة القسم الأوّل من التّقرير. عند صدور نصّ جديد يكفي تحيينه هنا.
+        <button type="button" class="rap-lien" data-restaurer="rapport_texte_legal">استرجاع النصّ الافتراضي</button>
+      </small>
+    </div>
+    <div class="form-group" style="max-width:320px;">
+      <label for="rapport_fasl">الفصل</label>
+      <input type="text" id="rapport_fasl" name="rapport_fasl" class="form-control"
+             value="{{ fasl }}" data-defaut="{{ fasl_defaut }}">
+      <small class="rap-note">مثال: {{ fasl_defaut }}</small>
+    </div>
+  </div>
+
+  <!-- ── 2. المهامّ والتّنظيم الهيكلي ────────────────────────────────── -->
+  <div class="card rap-card">
+    <h2>2 — المهامّ والتّنظيم الهيكلي (القسم الأوّل من التّقرير)</h2>
+    <p class="rap-note" style="margin:0 0 .5rem;">المقدّمة (آليّة):</p>
+    <div class="rap-apercu">{{ intro }}</div>
+
+    <div class="form-group">
+      <label for="rapport_taches">1.1 — الصّلاحيّات
+        {% if taches_modifie %}<span class="rap-etat rap-etat--modif">نصّ معدّل</span>
+        {% else %}<span class="rap-etat rap-etat--auto">نصّ آلي</span>{% endif %}
+      </label>
+      <textarea id="rapport_taches" name="rapport_taches" class="form-control" rows="7"
+                data-defaut="{{ taches_defaut }}">{{ taches }}</textarea>
+      <small class="rap-note">
+        كلّ سطر يبدأ بـ «-» يصبح نقطة في التّقرير.
+        <button type="button" class="rap-lien" data-restaurer="rapport_taches">استرجاع النصّ الآلي</button>
+      </small>
+    </div>
+
+    <div class="form-group">
+      <label for="rapport_structure">1.2 — الهيكل التّنظيمي
+        {% if structure_modifie %}<span class="rap-etat rap-etat--modif">نصّ معدّل</span>
+        {% else %}<span class="rap-etat rap-etat--auto">نصّ آلي</span>{% endif %}
+      </label>
+      <textarea id="rapport_structure" name="rapport_structure" class="form-control" rows="2"
+                data-defaut="{{ structure_defaut }}">{{ structure }}</textarea>
+      <small class="rap-note">
+        <button type="button" class="rap-lien" data-restaurer="rapport_structure">استرجاع النصّ الآلي</button>
+      </small>
+    </div>
+    <p class="rap-note" style="margin:0;">
+      ℹ️ ما دام النصّ غير معدّل فإنّه يتبع آليًّا اسم المركز والنصّ القانوني. ويمكن تعديله أيضًا لتقرير واحد فقط في نافذة المعاينة قبل الطّبع.
+    </p>
+  </div>
+
+  <!-- ── 3. جدول العديد ──────────────────────────────────────────────── -->
+  <div class="card rap-card" id="rh">
+    <h2>3 — الموارد البشريّة: جدول العديد الحالي</h2>
+    <p class="rap-note" style="margin:0 0 .8rem;">
+      «العدد» يُحتسب آليًّا من خانات الهيئة. يمكن إضافة سطر لكلّ مستوى (إلى حدود {{ rh_max }} أسطر).
+    </p>
+    <input type="hidden" name="rapport_rh" id="rapport_rh" value="">
+    <div class="rh-wrap">
+      <table class="rh-table" id="rhTable">
+        <thead>
+          <tr>
+            <th rowspan="2">المستوى</th>
+            <th rowspan="2">العدد</th>
+            {% for g in rh_groupes %}
+              {% set n = rh_colonnes|selectattr(2, 'equalto', g)|list|length %}
+              <th colspan="{{ n }}" class="rh-groupe">{{ g }}</th>
+            {% endfor %}
+            <th rowspan="2" aria-label="حذف"></th>
+          </tr>
+          <tr>
+            {% for c in rh_colonnes %}<th>{{ c[1] }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody id="rhCorps"></tbody>
+        <tfoot>
+          <tr>
+            <td>المجموع</td>
+            <td id="rhTotal">{{ rh_total }}</td>
+            {% for c in rh_colonnes %}<td data-somme="{{ c[0] }}">0</td>{% endfor %}
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="rh-ecart" id="rhEcart"></div>
+    <button type="button" class="btn" id="rhAjouter" style="margin-top:.4rem;">＋ إضافة سطر</button>
+
+    <div class="form-group" style="margin-top:1rem;">
+      <label for="rapport_rh_note">ملاحظة تُدرج تحت الجدول (اختياري)</label>
+      <textarea id="rapport_rh_note" name="rapport_rh_note" class="form-control" rows="2"
+                placeholder="مثال: يتولّى رئيس المركز الإشراف على المصلحة بالنّيابة.">{{ rh_note }}</textarea>
+    </div>
+  </div>
+
+</form>
+
+<!-- ── 4. عدد الدّورات المبرمجة ─────────────────────────────────────── -->
+<div class="card rap-card" id="annees">
+  <h2>4 — عدد الدّورات المبرمجة حسب السّنة</h2>
+  <p class="rap-note" style="margin:0 0 .8rem;">
+    يُعتمد لاحتساب <strong>نسبة الإنجاز</strong> في التّقارير (الدّورات المنجزة ÷ الدّورات المبرمجة في المخطّط السّنوي).
+  </p>
+  <table class="annees-table">
+    <thead><tr><th>السّنة</th><th>عدد الدّورات المبرمجة</th><th>آخر تحيين</th><th></th></tr></thead>
+    <tbody>
+      {% for a in annees %}
+      <tr>
+        <td><strong>{{ a.annee }}</strong></td>
+        <td>
+          {# V3.0.1 — champ rattaché au formulaire principal : enregistré par « حفظ إعدادات التّقارير » #}
+          <input type="number" name="nb_annee_{{ a.annee }}" form="formRapports" class="form-control"
+                 min="0" max="9999" value="{{ a.nb_dorrat_programmees }}" required style="width:9rem;"
+                 aria-label="عدد الدّورات المبرمجة لسنة {{ a.annee }}">
+        </td>
+        <td class="rap-note">{{ a.date_maj or '' }}</td>
+        <td>
+          <form method="POST" style="margin:0;" data-confirm="حذف عدد الدّورات المبرمجة لسنة {{ a.annee }}؟">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="supprimer_annee">
+            <input type="hidden" name="annee" value="{{ a.annee }}">
+            <button type="submit" class="btn btn-del" style="padding:.25rem .6rem;font-size:.82rem;" title="حذف">🗑</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="rap-note">لم تُضبط أيّ سنة بعد.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# V3.0.1 — champs rattachés au formulaire principal : un seul enregistrement pour toute la page #}
+  <div style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap;margin-top:1rem;">
+    <div class="form-group" style="margin:0;">
+      <label for="nouvelle_annee">السّنة</label>
+      <input type="number" id="nouvelle_annee" name="nouvelle_annee" form="formRapports" class="form-control"
+             min="2000" max="2100" value="{{ now_year }}" style="width:7rem;">
+    </div>
+    <div class="form-group" style="margin:0;">
+      <label for="nouveau_nb">عدد الدّورات المبرمجة</label>
+      <input type="number" id="nouveau_nb" name="nouveau_nb" form="formRapports" class="form-control"
+             min="0" max="9999" style="width:9rem;">
+    </div>
+    <button type="submit" form="formRapports" class="btn btn-add">＋ إضافة / تحيين</button>
+  </div>
+</div>
+
+<!-- ── Enregistrement : en dernier, après la section 4 ─────────────────── -->
+<div style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;margin-bottom:1.6rem;">
+  <button type="submit" form="formRapports" class="btn btn-add">💾 حفظ إعدادات التّقارير</button>
+  <a href="{{ url_for('parametres') }}" class="btn">↩ رجوع إلى الإعدادات</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // ── استرجاع النصّ الافتراضي ────────────────────────────────────────────
+  document.querySelectorAll('[data-restaurer]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var champ = document.getElementById(b.dataset.restaurer);
+      if (champ) { champ.value = champ.dataset.defaut || ''; champ.focus(); }
+    });
+  });
+
+  // ── جدول العديد ────────────────────────────────────────────────────────
+  var COLS = {{ rh_colonnes|map(attribute=0)|list|tojson }};
+  var HAYAA = {{ rh_hayaa|list|tojson }};
+  var NIVEAUX = {{ niveaux_rh|list|tojson }};
+  var MAX = {{ rh_max }};
+  var lignes = {{ rh_lignes|tojson }};
+  var corps = document.getElementById('rhCorps');
+  var btnAjouter = document.getElementById('rhAjouter');
+
+  function entier(v) { var n = parseInt(v, 10); return isNaN(n) || n < 0 ? 0 : Math.min(n, 999); }
+
+  function ajouterLigne(l) {
+    l = l || {};
+    var tr = document.createElement('tr');
+    var sel = document.createElement('select');
+    sel.className = 'rh-niveau';
+    var niv = l.niveau || NIVEAUX[0];
+    var options = NIVEAUX.indexOf(niv) < 0 ? NIVEAUX.concat([niv]) : NIVEAUX;
+    options.forEach(function (n) {
+      var o = document.createElement('option'); o.value = n; o.textContent = n;
+      if (n === niv) o.selected = true; sel.appendChild(o);
+    });
+    var td = document.createElement('td'); td.appendChild(sel); tr.appendChild(td);
+    var tdTot = document.createElement('td'); tdTot.className = 'rh-total'; tr.appendChild(tdTot);
+    COLS.forEach(function (k) {
+      var c = document.createElement('td');
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0'; inp.max = '999'; inp.dataset.cle = k;
+      inp.value = l[k] ? l[k] : '';
+      inp.placeholder = '0';
+      inp.addEventListener('input', recalculer);
+      c.appendChild(inp); tr.appendChild(c);
+    });
+    var tdDel = document.createElement('td');
+    var del = document.createElement('button');
+    del.type = 'button'; del.className = 'rap-lien'; del.textContent = '✕'; del.title = 'حذف السّطر';
+    del.style.textDecoration = 'none';
+    del.addEventListener('click', function () { tr.remove(); recalculer(); });
+    tdDel.appendChild(del); tr.appendChild(tdDel);
+    corps.appendChild(tr);
+    recalculer();
+  }
+
+  function lire() {
+    return Array.prototype.map.call(corps.rows, function (tr) {
+      var l = { niveau: tr.querySelector('.rh-niveau').value };
+      tr.querySelectorAll('input[data-cle]').forEach(function (i) { l[i.dataset.cle] = entier(i.value); });
+      return l;
+    });
+  }
+
+  function recalculer() {
+    var data = lire(), sommes = {}, total = 0;
+    COLS.forEach(function (k) { sommes[k] = 0; });
+    data.forEach(function (l, idx) {
+      var t = 0;
+      HAYAA.forEach(function (k) { t += l[k]; });
+      corps.rows[idx].querySelector('.rh-total').textContent = t;
+      total += t;
+      COLS.forEach(function (k) { sommes[k] += l[k]; });
+    });
+    document.getElementById('rhTotal').textContent = total;
+    document.querySelectorAll('[data-somme]').forEach(function (td) { td.textContent = sommes[td.dataset.somme]; });
+    // Contrôle doux : الجنس et الوضعيّة devraient totaliser العدد.
+    var ecarts = [];
+    if (total && sommes.homme + sommes.femme !== total) ecarts.push('مجموع الجنس (' + (sommes.homme + sommes.femme) + ')');
+    if (total && sommes.direct + sommes.non_direct !== total) ecarts.push('مجموع الوضعيّة الإداريّة (' + (sommes.direct + sommes.non_direct) + ')');
+    document.getElementById('rhEcart').textContent = ecarts.length
+      ? '⚠️ ' + ecarts.join(' و') + ' لا يساوي العدد الجملي (' + total + '). يمكن الحفظ رغم ذلك.' : '';
+    btnAjouter.disabled = corps.rows.length >= MAX;
+  }
+
+  btnAjouter.addEventListener('click', function () { if (corps.rows.length < MAX) ajouterLigne(); });
+  if (lignes.length) { lignes.forEach(ajouterLigne); } else { ajouterLigne(); }
+
+  document.getElementById('formRapports').addEventListener('submit', function () {
+    document.getElementById('rapport_rh').value = JSON.stringify(lire());
+  });
+})();
+</script>
+{% endblock %}

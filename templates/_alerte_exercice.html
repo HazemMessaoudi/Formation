@@ -1,0 +1,48 @@
+{# v1.7 — السّجلّ السّنوي : alerte d'horloge et annonce d'un سجلّ neuf.
+   Inclus par base.html et accueil.html. `exercice_etat` vient du
+   context_processor d'app.py. #}
+{# V3.1 — la base a été restaurée depuis la نسخة المرآة (bandeau du مشرف) #}
+{% if restauration_miroir and session.get('username') %}
+  <div class="bandeau-exercice bandeau-exercice--alerte" role="alert">
+    <strong>♻️ استُرجعت قاعدة البيانات</strong>
+    {% if restauration_miroir.motif == 'absente' %}آليًّا لأنّ ملفّها كان مفقودًا{% elif restauration_miroir.motif == 'endommagee' %}بعد تلفها{% else %}بطلب من المشرف العام{% endif %}،
+    من نسخة بتاريخ <bdi dir="ltr">{{ restauration_miroir.date_copie }}</bdi>.
+    تثبّت من آخر العمليّات المسجّلة قبل ذلك التاريخ.
+    <form method="post" action="{{ url_for('miroir_acquitter') }}" style="display:inline;">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="suivant" value="{{ request.path }}">
+      <button type="submit" class="btn" style="margin-inline-start:.6rem;padding:.2rem .7rem;font-size:.82rem;">حسنًا</button>
+    </form>
+  </div>
+{% endif %}
+{% if exercice_etat and session.get('username') %}
+  {% if exercice_etat.alerte %}
+  <div class="bandeau-exercice bandeau-exercice--alerte" role="alert">
+    <strong>⚠️ تاريخ الحاسوب يشير إلى سنة {{ exercice_etat.alerte }}</strong>
+    بينما السّجلّ المفتوح هو سجلّ سنة {{ exercice_etat.ouverte }}.
+    لم يُفتح سجلّ جديد آليًّا لأنّ الفارق أكثر من سنة: تثبّت من تاريخ الحاسوب وساعته.
+    {% if est_admin %}
+    <form method="post" action="{{ url_for('exercice_ouvrir') }}" style="display:inline;"
+          data-confirm="فتح سجلّ سنة {{ exercice_etat.alerte }} نهائيًّا؟ لا يمكن التراجع عن هذه العمليّة. تأكّد أوّلًا أنّ تاريخ الحاسوب صحيح.">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="annee" value="{{ exercice_etat.alerte }}">
+      <button type="submit" class="btn" style="margin-inline-start:.6rem;padding:.25rem .8rem;font-size:.85rem;background:#b45309;color:#fff;">
+        التاريخ صحيح — فتح سجلّ {{ exercice_etat.alerte }}
+      </button>
+    </form>
+    {% else %}
+    أعلم المشرف العام.
+    {% endif %}
+  </div>
+  {% elif exercice_etat.annonce %}
+  <div class="bandeau-exercice bandeau-exercice--info" role="status">
+    <strong>📘 فُتح سجلّ سنة {{ exercice_etat.annonce[1] }}</strong>:
+    الترقيم انطلق من جديد في السلسلتين الداخليّة والخارجيّة. سجلّ سنة {{ exercice_etat.annonce[0] }} أُغلق ويبقى متاحًا للاطّلاع والطباعة.
+    <form method="post" action="{{ url_for('exercice_acquitter') }}" style="display:inline;">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="suivant" value="{{ request.path }}">
+      <button type="submit" class="btn" style="margin-inline-start:.6rem;padding:.2rem .7rem;font-size:.82rem;">حسنًا</button>
+    </form>
+  </div>
+  {% endif %}
+{% endif %}

@@ -1,0 +1,25 @@
+{# Graphique en colonnes (v1.5), géométrie calculée par core/graphiques.py.
+   Une seule série : pas de légende, le titre de la carte la nomme. Chaque
+   colonne a une zone de survol pleine hauteur (infobulle + focus clavier) ;
+   seule la valeur maximale est écrite. Le tableau « المعطيات » double le
+   graphique en texte. #}
+{% macro colonnes(g, titre_accessible) %}
+<figure class="graph">
+  <svg viewBox="0 0 {{ g.largeur }} {{ g.hauteur }}" role="img" aria-label="{{ titre_accessible }}"
+       class="graph__svg" preserveAspectRatio="xMidYMid meet">
+    {% for t in g.graduations %}
+    <line x1="{{ g.x_gauche }}" x2="{{ g.x_droite }}" y1="{{ t.y }}" y2="{{ t.y }}" class="graph__grille{% if loop.first %} graph__base{% endif %}"/>
+    <text x="{{ g.x_gauche - 6 }}" y="{{ t.y + 4 }}" class="graph__grad" text-anchor="end">{{ t.texte }}</text>
+    {% endfor %}
+    {% for c in g.colonnes %}
+    <g class="graph__col" tabindex="0" data-infobulle="{{ c.infobulle }}" aria-label="{{ c.infobulle }}">
+      <rect x="{{ c.x_bande }}" y="0" width="{{ c.bande }}" height="{{ g.base_y }}" class="graph__cible"/>
+      {% if c.chemin %}<path d="{{ c.chemin }}" class="graph__barre"/>{% endif %}
+      {% if c.etiquette %}<text x="{{ c.cx }}" y="{{ c.y_haut - 7 }}" class="graph__val" text-anchor="middle">{{ c.texte }}</text>{% endif %}
+      <text x="{{ c.cx }}" y="{{ g.base_y + 18 }}" class="graph__lib" text-anchor="middle">{{ c.libelle }}</text>
+    </g>
+    {% endfor %}
+  </svg>
+  {% if g.vide %}<figcaption class="graph__vide">لا توجد معطيات لهذه الفترة بعد.</figcaption>{% endif %}
+</figure>
+{% endmacro %}

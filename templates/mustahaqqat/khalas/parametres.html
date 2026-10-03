@@ -1,0 +1,52 @@
+{% extends "base_parametres.html" %}
+{% block title %}إعدادات وثائق الخلاص{% endblock %}
+
+{% block content %}
+<div class="page-header"><h1>🖨️ إعدادات وثائق الخلاص</h1></div>
+<p style="color:var(--text-light);line-height:1.85;margin-bottom:1.2rem;">
+  المراجع الإدارية الثابتة التي تُعمَّر بها الوثائق الأربع، تُحيَّن هنا مرّة واحدة.
+</p>
+
+<form method="POST">
+  <div class="card">
+    <div class="card-title">⚖️ الأوامر والمراجع القانونية</div>
+    <div class="kh-set">
+      <label class="kh-large">الأمر المتعلق بالتأجير (المذكرة)
+        <input type="text" name="ordre_tajir" value="{{ s.ordre_tajir }}"></label>
+      <label class="kh-large">الأمر المتعلق بالنشاط الخاص (الإعلام)
+        <input type="text" name="ordre_1995" value="{{ s.ordre_1995 }}"></label>
+    </div>
+    <p class="kh-note" style="margin-top:.8rem;">
+      📌 <strong>عدد المقرّر وتاريخه</strong> خاصّان بكلّ دورة، ويُطلبان عند اختيار الدّورة
+      في قسم «المستحقّات المالية». أمّا <strong>نسبة الأداءات</strong> فتُضبط في
+      <a href="{{ url_for('mustahaqqat_bareme_mali') }}">الجدول المالي</a>.
+    </p>
+  </div>
+
+  <div class="card" style="margin-top:1.3rem;">
+    <div class="card-title">🎖 الإمضاء — مدير التكوين الجهوي</div>
+    <div class="kh-set">
+      <label>الرتبة
+        <input type="text" name="directeur_grade" value="{{ s.directeur_grade }}"></label>
+      <label>الاسم واللقب
+        <input type="text" name="directeur_nom" value="{{ s.directeur_nom }}"></label>
+      <label class="kh-large">الصفة (تظهر فوق الإمضاء)
+        <input type="text" name="directeur_titre" value="{{ s.directeur_titre }}"></label>
+      <label>وزارة الإشراف (افتراضي)
+        <input type="text" name="ministere_ichraf" value="{{ s.ministere_ichraf }}"></label>
+    </div>
+    <div class="actions-bar" style="margin-top:1.2rem;">
+      <button type="submit" class="btn btn-generate">💾 حفظ الإعدادات</button>
+    </div>
+  </div>
+</form>
+
+<style>
+  .kh-set{ display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.9rem; }
+  .kh-set label{ display:flex;flex-direction:column;gap:.3rem;font-size:.9rem;color:var(--text-light); }
+  .kh-set .kh-large{ grid-column:1/-1; }
+  .kh-set input{ padding:.55rem .65rem;border:1px solid var(--border);border-radius:8px;
+    background:var(--card-bg);color:var(--text);font-family:inherit;font-size:.95rem; }
+  .kh-set input:focus{ outline:2px solid var(--primary-l);outline-offset:1px; }
+</style>
+{% endblock %}

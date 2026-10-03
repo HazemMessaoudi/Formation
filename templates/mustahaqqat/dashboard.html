@@ -1,0 +1,181 @@
+{% extends "base_mustahaqqat.html" %}
+{% block title %}لوحة القيادة – المستحقّات المالية{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>💰 لوحة القيادة — المستحقّات المالية</h1>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card stat-navy">
+    <div class="stat-icon">📋</div>
+    <div class="stat-val">{{ stats.dorrat_enregistrees }}</div>
+    <div class="stat-lbl">دورات مسجَّلة في المنظومة</div>
+  </div>
+  <div class="stat-card stat-gold">
+    <div class="stat-icon">🕓</div>
+    <div class="stat-val">{{ stats.dorrat_ghayr }}</div>
+    <div class="stat-lbl">مستحقّات غير منجزة</div>
+  </div>
+  <div class="stat-card stat-green">
+    <div class="stat-icon">✅</div>
+    <div class="stat-val">{{ stats.dorrat_manjaza }}</div>
+    <div class="stat-lbl">مستحقّات منجزة</div>
+  </div>
+  <div class="stat-card stat-blue">
+    <div class="stat-icon">🙋</div>
+    <div class="stat-val">{{ stats.presents }}</div>
+    <div class="stat-lbl">حاضرون مؤشَّر عليهم</div>
+  </div>
+  <div class="stat-card stat-purple">
+    <div class="stat-icon">🚫</div>
+    <div class="stat-val">{{ stats.absents }}</div>
+    <div class="stat-lbl">غائبون مؤشَّر عليهم</div>
+  </div>
+  <div class="stat-card stat-teal">
+    <div class="stat-icon">🎓</div>
+    <div class="stat-val">{{ stats.formateurs }}</div>
+    <div class="stat-lbl">مكوّنون</div>
+  </div>
+</div>
+
+{# Les montants ne se comptent que sur les dorrat ACHEVÉES. Ailleurs ils ne
+   sont qu'une estimation — et une estimation affichée en tête de لوحة القيادة
+   devient vite un chiffre qu'on cite. #}
+<div class="card bloc-montant" style="margin-top:1.4rem;">
+  <div class="card-title">💵 المستحقّات المقرَّة</div>
+  <div class="montant-grid">
+    <div class="montant-bloc">
+      <div class="montant-val" dir="ltr">{{ stats.montant_texte }}</div>
+      <div class="montant-lbl">دينارًا — جملة المبالغ المقرَّة</div>
+    </div>
+    <div class="montant-sep"></div>
+    <div class="montant-bloc">
+      <div class="montant-val">{{ stats.heures_payees }}</div>
+      <div class="montant-lbl">ساعة تكوين مخلَّصة</div>
+    </div>
+    <div class="montant-sep"></div>
+    <div class="montant-bloc">
+      <div class="montant-val">{{ stats.dorrat_manjaza }}</div>
+      <div class="montant-lbl">دورة أُقرَّت مستحقّاتها</div>
+    </div>
+  </div>
+  <p class="montant-note">
+    لا يُحتسب في هذه المبالغ إلّا ما أُقرَّ نهائيًّا؛ الدورات قيد المعالجة
+    ({{ stats.dorrat_en_cours }}) لها تقدير لا مبلغ.
+  </p>
+</div>
+
+{# ── Graphique à barres — bâti UNIQUEMENT sur stats.par_classe (donnée déjà
+     fournie). On calcule le maximum côté gabarit pour la hauteur relative. ── #}
+{% set vals = [] %}
+{% for c in classes %}{% set _ = vals.append(stats.par_classe.get(c, 0)) %}{% endfor %}
+{% set vmax = (vals | max) if vals else 0 %}
+<div class="card" style="margin-top:1.4rem;">
+  <div class="card-title">⚖️ الدورات حسب الصنف</div>
+
+  {% if vmax and vmax > 0 %}
+  <div class="chart-bars" id="chartClasses">
+    {% for c in classes %}
+    {% set v = stats.par_classe.get(c, 0) %}
+    <div class="chart-col">
+      <div class="chart-bar" data-alt="{{ loop.index0 % 4 }}"
+           data-pct="{{ ((v / vmax) * 100) | round(1) }}">
+        <span class="chart-bar__val">{{ v }}</span>
+      </div>
+      <div class="chart-col__lbl">الصنف {{ c }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="chart-empty">🗂️ لا توجد دورات مصنَّفة بعدُ لعرضها بيانيًّا.</div>
+  {% endif %}
+
+  <p style="margin-top:.9rem;color:var(--text-light);font-size:.86rem;line-height:1.7;">
+    صنف الدورة يُستخرج آليًّا من رتب <strong>الحاضرين</strong> بعد التأشير على ورقة الحضور:
+    الصنف الأكثر حضورًا هو صنف الدورة.
+  </p>
+</div>
+
+<div class="card" style="margin-top:1.4rem;">
+  <div class="card-title-flex">
+    <span class="card-title" style="margin:0;">🕓 في انتظار الإنجاز</span>
+    <a href="{{ url_for('mustahaqqat_ghayr_manjaza') }}" class="btn btn-add">عرض الكلّ</a>
+  </div>
+
+  {% if recentes %}
+  <table class="list-table">
+    <thead>
+      <tr>
+        <th>الدورة</th>
+        <th>التاريخ</th>
+        <th>المكوّن</th>
+        <th>المشاركون</th>
+        <th>الحالة</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in recentes %}
+      <tr>
+        <td>{{ d.titre }}</td>
+        <td>{{ d|dates_dorra }}</td>
+        <td>{{ d.nom_formateur or '—' }}</td>
+        <td>{{ d.nb_participants }}</td>
+        <td>{{ d.etat_libelle }}</td>
+        <td class="actions-td">
+          <a class="btn-action btn-view"
+             href="{{ url_for('mustahaqqat_hodour', formation_id=d.id) }}">▶ إنجاز</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-msg">
+    🎉 لا توجد دورات في انتظار إنجاز مستحقّاتها.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  /* Le montant est le chiffre qu'on vient chercher : il a droit à sa carte,
+     et à une taille qui le distingue des comptages au-dessus. */
+  .bloc-montant { border-inline-start:4px solid #1a7a3a; }
+
+  .montant-grid {
+    display:flex; align-items:stretch; flex-wrap:wrap; gap:1rem;
+  }
+  .montant-bloc { flex:1; min-width:170px; text-align:center; padding:.5rem 0; }
+  .montant-val {
+    font-size:2.3rem; font-weight:700; color:#1a7a3a; line-height:1.2;
+    font-variant-numeric:tabular-nums;
+  }
+  .montant-lbl { font-size:.88rem; color:var(--text-light); margin-top:.25rem; line-height:1.6; }
+  .montant-sep { width:1px; background:var(--border); align-self:stretch; }
+
+  .montant-note {
+    margin:1rem 0 0; color:var(--text-light);
+    font-size:.86rem; line-height:1.8;
+  }
+
+  @media (max-width: 620px) { .montant-sep { display:none; } }
+</style>
+<script>
+  /* Croissance des barres au chargement : de 0 vers leur hauteur relative. */
+  (function () {
+    var bars = document.querySelectorAll('#chartClasses .chart-bar');
+    if (!bars.length) return;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        bars.forEach(function (b) {
+          var pct = parseFloat(b.getAttribute('data-pct')) || 0;
+          b.style.height = Math.max(pct, 2) + '%';   // 2% plancher pour rester visible
+        });
+      });
+    });
+  })();
+</script>
+{% endblock %}

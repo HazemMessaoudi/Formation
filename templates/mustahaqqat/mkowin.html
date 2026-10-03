@@ -1,0 +1,55 @@
+{% extends "base_mustahaqqat.html" %}
+{% block title %}قائمة الأسماء – المكوّنون{% endblock %}
+
+{#  « قائمة الأسماء » du قسم المستحقّات : les مكوّنون qui ont effectivement
+    animé une دورة enregistrée. C'est sur ce périmètre que porteront les
+    مستحقّات du مكوّن. #}
+
+{% block content %}
+<div class="page-header">
+  <h1>👤 قائمة الأسماء — المكوّنون</h1>
+</div>
+<p style="color:var(--text-light);margin-bottom:1.3rem;line-height:1.8;">
+  المكوّنون الذين أشرفوا فعليًّا على دورات مسجَّلة نهائيًّا في المنظومة،
+  مع عدد دوراتهم وما أُنجز منها.
+</p>
+
+{% if formateurs %}
+<div class="card">
+  <div class="table-wrapper">
+    <table class="list-table table-triable" data-renumeroter>
+      <thead>
+        <tr>
+          <th style="width:46px;">ر.ع</th>
+          <th>الاسم واللقب</th>
+          <th>الرتبة</th>
+          <th>مقرّ العمل</th>
+          <th style="text-align:center;">جملة الدورات</th>
+          <th style="text-align:center;">منجزة</th>
+          <th style="text-align:center;">في الانتظار</th>
+          <th>آخر دورة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in formateurs %}
+        <tr>
+          <td class="num-cell">{{ loop.index }}</td>
+          <td><strong>{{ f.nom_formateur }}</strong></td>
+          <td>{{ f.grade or '—' }}</td>
+          <td>{{ f.lieu_travail or (f.mkow.lieu_travail if f.mkow else '') or '—' }}</td>
+          <td style="text-align:center;font-weight:700;">{{ f.nb_dorrat }}</td>
+          <td style="text-align:center;color:#1a7a3a;font-weight:700;">{{ f.nb_manjaza }}</td>
+          <td style="text-align:center;color:#b07a10;font-weight:700;">{{ f.nb_restantes }}</td>
+          <td>{{ f.derniere_dorra or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="empty-msg">
+  لا يوجد بعدُ مكوّنون بدورات مسجَّلة نهائيًّا في المنظومة.
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base_mustahaqqat.html" %}
+{% block title %}برامج تكوين منجزة – المستحقّات{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>✅ برامج تكوين منجزة</h1>
+</div>
+<p style="color:var(--text-light);margin-bottom:1.3rem;line-height:1.8;">
+  الدورات التي أُنجزت مستحقّاتها المالية. تُعرض للاطّلاع فقط.
+</p>
+
+{% if dorrat %}
+<div class="card">
+  <div class="table-wrapper">
+    <table class="list-table table-triable">
+      <thead>
+        <tr>
+          <th>عنوان الدورة</th>
+          <th>تاريخ الدورة</th>
+          <th>المكوّن</th>
+          <th>الصنف</th>
+          <th>حاضرون</th>
+          <th>الساعات</th>
+          <th>المبلغ</th>
+          <th>تاريخ الإنجاز</th>
+          <th style="width:190px;" data-tri="non"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in dorrat %}
+        <tr>
+          <td><strong>{{ d.titre }}</strong> <span class="badge-verrou" title="مصادَق عليها نهائيًّا — التراجع من مشمولات المشرف العام">🔒</span></td>
+          <td>{{ d|dates_dorra }}</td>
+          <td>{{ d.nom_formateur or '—' }}</td>
+          <td style="text-align:center;font-weight:700;color:var(--primary-txt, var(--primary));">{{ d.classe or '—' }}</td>
+          <td style="text-align:center;">{{ d.mu_presents or 0 }}</td>
+          <td style="text-align:center;">{{ d.heures or '—' }}</td>
+          <td style="text-align:center;font-weight:700;" dir="ltr">
+            {% if d.montant_texte %}{{ d.montant_texte }} د{% else %}—{% endif %}
+          </td>
+          <td>{{ (d.mu_acheve_at or '')[:16] or '—' }}</td>
+          <td>
+            <div class="actions-dorra">
+            <a href="{{ url_for('mustahaqqat_qima', formation_id=d.id) }}"
+               class="btn btn-sm">📄 التفصيل</a>
+            {# v1.7.1 — شهادات المشاركين الفعليين (الحاضرون في ورقة الحضور) #}
+            <a href="{{ url_for('generer_shahadat_pdf', lettre_id=d.lettre_id, formation_id=d.id) }}"
+               target="_blank" class="btn btn-sm btn-shahadat"
+               title="شهادة مشاركة لكلّ مشارك حاضر حسب ورقة الحضور">🎓 طباعة شهائد المشاركين ({{ d.mu_presents or 0 }})</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {# Le total est le chiffre qu'on vient chercher ici : il ne doit pas se
+         recalculer de tête, ligne à ligne. #}
+      <tfoot>
+        <tr class="ligne-total">
+          <td colspan="5" style="text-align:end;font-weight:700;">المجموع</td>
+          <td style="text-align:center;font-weight:700;">
+            {{ dorrat | sum(attribute='heures') }}
+          </td>
+          <td style="text-align:center;font-weight:700;" dir="ltr">
+            {{ '%.3f' | format(dorrat | sum(attribute='montant')) }} د
+          </td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="empty-msg">
+  لا توجد بعدُ دورات أُنجزت مستحقّاتها.
+  <a href="{{ url_for('mustahaqqat_ghayr_manjaza') }}">ابدأ من البرامج غير المنجزة</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .ligne-total td {
+    background:rgba(26,122,58,.09);
+    border-top:2px solid rgba(26,122,58,.4);
+    color:#1a7a3a; font-variant-numeric:tabular-nums;
+  }
+  .btn-sm { padding:.28rem .7rem; font-size:.84rem; }
+  .actions-dorra { display:flex; flex-direction:column; gap:.35rem; align-items:stretch; }
+  .actions-dorra .btn { text-align:center; justify-content:center; white-space:nowrap; }
+  .btn-shahadat { background:#7c3aed; color:#fff; }
+  .btn-shahadat:hover { background:#6d28d9; color:#fff; }
+</style>
+{% endblock %}

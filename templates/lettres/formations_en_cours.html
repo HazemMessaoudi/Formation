@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}إستكمال برنامج تكوين{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:.4rem;">
+  <h1>🔄 إستكمال برنامج تكوين</h1>
+  <a href="{{ url_for('nouvelle_lettre') }}" class="btn btn-add">➕ تكوين جديد</a>
+</div>
+<p style="color:var(--text-muted);margin-bottom:1.3rem;">
+  برامج التكوين المفتوحة التي لم تُسجَّل بعد — اضغط «استكمال» لمواصلة العمل من حيث توقّفت.
+</p>
+
+{% if programmes %}
+{% set n_retard = programmes|selectattr('en_retard')|list|length %}
+{% if n_retard %}
+<div class="bandeau-retard">⚠️ عدد البرامج المتأخّرة: {{ n_retard }} — في كلّ منها دورة فات تاريخها ولم تُسجَّل نهائيًّا.</div>
+{% endif %}
+<div style="display:flex;flex-direction:column;gap:.75rem;">
+  {% for pr in programmes %}
+  {% set titres = (pr.titres or '').split(' | ') | select | list %}
+  <div id="prog-row-{{ pr.id }}"
+       style="display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;
+              padding:.9rem 1.1rem;background:var(--card-bg);border:1px solid var(--border);
+              border-right:5px solid {{ '#dc2626' if pr.en_retard else '#f59e0b' }};border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.05);"
+       {% if pr.en_retard %}data-retard="1"{% endif %}>
+    <div style="flex:1;min-width:180px;">
+      <div style="font-weight:700;font-size:1.03rem;color:var(--text);">
+        {{ titres[0] if titres else 'برنامج دون عنوان' }}
+        {% if titres|length > 1 %}
+        <span style="font-weight:400;font-size:.82rem;color:var(--text-muted);">
+          (+{{ titres|length - 1 }} دورة أخرى)
+        </span>
+        {% endif %}
+      </div>
+      <div style="color:var(--text-muted);font-size:.85rem;margin-top:.2rem;">
+        {{ pr.mois }} {{ pr.annee }}{% if pr.date_creation %} · {{ pr.date_creation[:10] }}{% endif %} · {{ pr.nb_formations }} دورة
+      </div>
+      <div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.45rem;">
+        {% for e in pr.etats %}<span class="etat-pastille etat-pastille--{{ e.code }}">{{ e.icone }} {{ e.label }}</span>{% endfor %}
+      </div>
+    </div>
+    <a href="{{ url_for('nouvelle_lettre') }}?modifier={{ pr.id }}"
+       class="btn" style="background:#f59e0b;color:#fff;white-space:nowrap;padding:.5rem 1.1rem;">
+      ▶ استكمال
+    </a>
+    <button type="button" onclick="annulerProgramme({{ pr.id }}, '{{ (titres[0] if titres else 'برنامج دون عنوان')|replace("'", "\\'") }}')"
+       class="btn" style="background:#ef4444;color:#fff;white-space:nowrap;padding:.5rem 1.1rem;border-color:#ef4444;">
+      🗑 إلغاء
+    </button>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-msg" id="emptyMsg">
+  🎉 لا توجد برامج غير مكتملة.<br>
+  جميع برامج التكوين إمّا مكتملة أو مسجَّلة في المنظومة.
+  <a href="{{ url_for('nouvelle_lettre') }}">أنشئ برنامجًا جديدًا</a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+/* ─── Annulation (فسخ) d'un programme ───────────────────────────────────────── */
+function annulerProgramme(lettreId, titre) {
+  showConfirmModal(
+    `هل أنت متأكّد من فسخ التكوين «${titre}» نهائيًّا؟\n\n`
+    + 'سيتمّ حذف كلّ معطياته (الدورات، المشاركون، البرامج، البطاقات، المذكّرات)، '
+    + 'وتعود أرقام التّرسيم المحجوزة (مراسلة البرنامج، مراسلة المدير الجهوي، المذكّرات) '
+    + 'إلى الرّصيد ليُعاد استعمالها، '
+    + 'ولا يمكن التراجع عن هذه العمليّة.',
+    async () => {
+      try {
+        const res = await fetch('/lettre/' + lettreId + '/annuler', { method: 'POST' });
+        const d = await res.json();
+        if (d.succes) {
+          const row = document.getElementById('prog-row-' + lettreId);
+          if (row) row.remove();
+          // S'il ne reste plus aucune ligne → recharger pour afficher l'état vide
+          if (!document.querySelector('[id^="prog-row-"]')) location.reload();
+        } else {
+          showAlertModal('تعذّر فسخ البرنامج بأكمله: إحدى دوراته مسجَّلة نهائيًّا في المنظومة. '
+                       + 'يمكنك فسخ الدورات غير المسجَّلة واحدة واحدة من جدول الدورات '
+                       + 'داخل البرنامج («استكمال» ثم خانة الفسخ).');
+        }
+      } catch(e) { showAlertModal('خطأ في الاتصال: ' + e.message); }
+    }
+  );
+}
+</script>
+{% endblock %}

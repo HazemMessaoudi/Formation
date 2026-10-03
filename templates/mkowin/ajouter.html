@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}إضافة إسم{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>👤 إضافة إسم جديد</h1>
+</div>
+
+{# ─── تحميل بطاقة شخص : Word / Excel ────────────────────────────────────
+    Le fichier est LU, jamais enregistré : les خانات reconnues sont posées
+    dans le formulaire ci-dessous, marquées, et l'agent relit avant «حفظ». #}
+<div class="card mk-import">
+  <div class="mk-import__tete">
+    <span class="mk-import__badge">تحميل بطاقة</span>
+    <span>املأ الخانات تلقائيًّا من ملفّ يحمل معطيات الشخص</span>
+  </div>
+  <p class="mk-import__aide">
+    يقبل النظام <strong>Word (.doc / .docx)</strong> و<strong>Excel (.xls / .xlsx)</strong> — مثل
+    «بطاقة إرشادات حول المكوّن». يقرأ كلّ عنوان والمعطى المكتوب بجانبه ويضعه في خانته أسفله
+    <strong>لمراجعتك وتحيينه قبل التسجيل</strong>؛ لا يُحفظ شيء آليًّا.
+  </p>
+  <div class="mk-import__ligne">
+    <input type="file" id="ficheFile" accept=".doc,.docx,.xls,.xlsx,.xlsm">
+    <button type="button" class="btn mk-import__btn" onclick="lireFiche()">📥 قراءة الملفّ</button>
+  </div>
+  <div id="ficheMsg" class="mk-import__msg" aria-live="polite"></div>
+</div>
+
+{% if doublon %}
+<div class="alert alert-error">
+  هذا الشخص مسجَّل مسبقًا: <strong>{{ doublon.nom }} {{ doublon.prenom or '' }}</strong> —
+  <a href="{{ url_for('modifier_mkow', mkow_id=doublon.id) }}">فتح بطاقته للتحيين</a>
+</div>
+{% endif %}
+
+<div class="card">
+  <form method="post" autocomplete="off" id="mkowForm">
+
+    <!-- ─── الهوية ─────────────────────────────────────────────── -->
+    <div class="fiche-section-title" style="margin-bottom:.8rem;">🪪 المعلومات الشخصية</div>
+    <div class="form-grid-2">
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>الإسم واللقب <span class="req">*</span></label>
+        <div style="display:flex;gap:.8rem;">
+          <select name="grade" style="flex:0 0 140px;" required>
+            <option value="">— الرتبة —</option>
+            {% for g in grades %}<option value="{{ g }}">{{ g }}</option>{% endfor %}
+          </select>
+          {# L'affichage partout est «nom prenom» sous l'étiquette «الإسم واللقب» :
+             la 1re خانة reçoit donc le اسم, la 2e le لقب. (Avant la v1.4e les
+             indications disaient l'inverse, et un nom saisi ici s'affichait
+             retourné par rapport à un nom importé d'Excel.) #}
+          <input type="text" name="nom" required placeholder="الاسم" style="flex:1;">
+          <input type="text" name="prenom" placeholder="اللقب" style="flex:1;">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>رقم بطاقة التعريف الوطنية</label>
+        <input type="text" name="cin" data-verif="cin" inputmode="numeric" maxlength="12" placeholder="8 أرقام" dir="ltr">
+      </div>
+      <div class="form-group">
+        <label>الصادرة بتاريخ</label>
+        <input type="date" name="cin_date">
+      </div>
+
+      <div class="form-group">
+        <label>رقم المعرف الوحيد</label>
+        <input type="text" name="identifiant_unique" data-verif="chiffres" placeholder="رقم المعرف" dir="ltr">
+      </div>
+      <div class="form-group">
+        <label>العنوان الشخصي</label>
+        <input type="text" name="adresse" placeholder="العنوان الكامل">
+      </div>
+
+      <div class="form-group">
+        <label>الهاتف الجوال <span class="req">*</span></label>
+        <input type="text" name="telephone_gsm" data-verif="telephone" placeholder="+216 xx xxx xxx" dir="ltr">
+      </div>
+      <div class="form-group">
+        <label>الهاتف الإداري</label>
+        <input type="text" name="telephone_adm" data-verif="telephone" placeholder="+216 xx xxx xxx" dir="ltr">
+      </div>
+
+      {# v1.6 — pour الإحصائيات فقط (jamais imprimés dans les وثائق) #}
+      <div class="form-group">
+        <label>الجنس</label>
+        <select name="sexe">
+          <option value="">— غير محدّد —</option>
+          {% for s in SEXES %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>الفئة العمريّة</label>
+        <select name="fiaa_omria">
+          <option value="">— غير محدّدة —</option>
+          {% for f in FIAAT %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- ─── المسار المهني ────────────────────────────────────────── -->
+    <div class="fiche-section-title" style="margin:.1.2rem 0 .8rem;">💼 المعلومات المهنية</div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>الشهادة العلمية</label>
+        <input type="text" name="diplome" list="dl_mk_diplome" autocomplete="off" placeholder="أعلى شهادة علمية">
+      </div>
+      <div class="form-group">
+        <label>الرتبة المهنية</label>
+        <input type="text" name="degre" list="dl_mk_degre" autocomplete="off" placeholder="الدرجة">
+      </div>
+
+      <div class="form-group">
+        <label>الخطة الوظيفية</label>
+        <input type="text" name="plan_fonctionnel" list="dl_mk_plan_fonctionnel" autocomplete="off" placeholder="المنصب الوظيفي">
+      </div>
+      <div class="form-group">
+        <label>التخصص</label>
+        <input type="text" name="specialite" list="dl_mk_specialite" autocomplete="off" placeholder="مجال التخصص">
+      </div>
+
+      <div class="form-group">
+        <label>الإدارة</label>
+        <input type="text" name="administration" list="dl_mk_administration" autocomplete="off" placeholder="الإدارة التابع إليها">
+      </div>
+      <div class="form-group">
+        <label>وزارة الإشراف</label>
+        <input type="text" name="ministere" list="dl_mk_ministere" autocomplete="off" placeholder="الوزارة">
+      </div>
+
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>مكان العمل</label>
+        <input type="text" name="lieu_travail" list="dl_mk_lieu_travail" autocomplete="off" placeholder="المؤسسة / الوحدة">
+      </div>
+    </div>
+
+    <!-- ─── التواصل والبنك ────────────────────────────────────────── -->
+    <div class="fiche-section-title" style="margin:1.2rem 0 .8rem;">🏦 التواصل والحساب البنكي</div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>البريد الإلكتروني</label>
+        <input type="text" name="email" data-verif="email" dir="ltr" placeholder="email@example.com">
+      </div>
+      <div class="form-group" style="display:flex;gap:.6rem;align-items:flex-end;">
+        <div style="flex:2;">
+          <label>البنك</label>
+          <input type="text" name="banque" list="dl_mk_banque" autocomplete="off" placeholder="اسم البنك">
+        </div>
+        <div style="flex:1;">
+          <label>الفرع</label>
+          <input type="text" name="agence" list="dl_mk_agence" autocomplete="off" placeholder="الفرع">
+        </div>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>رقم الحساب البنكي / البريدي</label>
+        <input type="text" name="num_compte" data-verif="rib" inputmode="numeric" maxlength="30" dir="ltr" placeholder="RIB / CCP — 20 رقمًا">
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top:.8rem;">
+      <label>ملاحظات</label>
+      <textarea name="notes" rows="3" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:.55rem .75rem;font-family:inherit;font-size:.95rem;resize:vertical;"></textarea>
+    </div>
+
+    <div class="actions-bar" style="gap:1rem;margin-top:1.5rem;">
+      <button type="submit" class="btn btn-save">💾 حفظ</button>
+      <a href="{{ url_for('liste_mkowin') }}" class="btn btn-cancel">إلغاء</a>
+    </div>
+  </form>
+</div>
+
+<style>
+  .mk-import { border:2px dashed #0f766e; margin-bottom:1rem; }
+  .mk-import__tete { display:flex; align-items:center; gap:.6rem; font-weight:700; margin-bottom:.4rem; }
+  .mk-import__badge { background:#0f766e; color:#fff; padding:.2rem .6rem; border-radius:5px; font-size:.8rem; }
+  .mk-import__aide { color:var(--text-light); font-size:.86rem; margin:.2rem 0 .7rem; line-height:1.75; }
+  .mk-import__ligne { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+  .mk-import__ligne input[type=file] { font-size:.86rem; max-width:100%; }
+  .mk-import__btn { background:#0f766e; color:#fff; padding:.4rem .9rem; font-size:.86rem; }
+  .mk-import__msg { margin-top:.6rem; font-size:.88rem; line-height:1.8; }
+  .mk-import__msg ul { margin:.3rem 1.2rem 0; padding:0; }
+  /* Une خانة remplie depuis le fichier : visible d'un coup d'œil, à relire. */
+  .mk-lu { background:#ecfdf5 !important; border-color:#34d399 !important; }
+  body[data-theme="5"] .mk-lu { background:#064e3b !important; }
+</style>
+
+<script>
+// Valeurs renvoyées après un refus (doublon) : le formulaire n'est pas perdu.
+const VALEURS_RENVOYEES = {{ (valeurs or {}) | tojson }};
+document.addEventListener('DOMContentLoaded', () => {
+  Object.entries(VALEURS_RENVOYEES).forEach(([k, v]) => poserChamp(k, v, false));
+});
+
+function poserChamp(nom, val, marquer = true) {
+  const el = document.querySelector(`#mkowForm [name="${nom}"]`);
+  if (!el || val == null || val === '') return false;
+  if (el.tagName === 'SELECT' && ![...el.options].some(o => o.value === val)) return false;
+  el.value = val;
+  if (marquer) {
+    el.classList.add('mk-lu');
+    el.addEventListener('input', () => el.classList.remove('mk-lu'), { once: true });
+  }
+  return true;
+}
+
+function echap(s) {
+  return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+async function lireFiche() {
+  const inp = document.getElementById('ficheFile');
+  const msg = document.getElementById('ficheMsg');
+  if (!inp.files || !inp.files.length) {
+    msg.innerHTML = '<span style="color:#b91c1c;">اختر ملفًّا أوّلًا.</span>';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('fichier', inp.files[0]);
+  msg.innerHTML = '<span style="color:var(--text-light);">جارٍ القراءة…</span>';
+  try {
+    const res = await fetch(`{{ url_for('importer_fiche_mkow') }}`, {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': document.querySelector('meta[name=csrf-token]').content },
+      body: fd
+    });
+    const d = await res.json();
+    if (!d.succes) {
+      msg.innerHTML = `<span style="color:#b91c1c;">${echap(d.erreur || 'تعذّرت القراءة.')}</span>`;
+      return;
+    }
+    document.querySelectorAll('#mkowForm .mk-lu').forEach(e => e.classList.remove('mk-lu'));
+    let n = 0;
+    Object.entries(d.champs || {}).forEach(([k, v]) => { if (poserChamp(k, v)) n++; });
+    let html = `<span style="color:#0f766e;">✓ قُرئت ${n} خانة — مُلوَّنة بالأخضر أسفله. `
+             + `راجعها وحيّنها ثمّ اضغط «حفظ».</span>`;
+    if (d.existe) {
+      html += `<div style="color:#b45309;margin-top:.3rem;">⚠️ هذا الشخص مسجَّل مسبقًا: `
+            + `<strong>${echap(d.existe.nom)}</strong> — `
+            + `<a href="${d.existe.url}">افتح بطاقته لتحيينها</a> بدل إضافته مرّة ثانية.</div>`;
+    }
+    if ((d.avertissements || []).length) {
+      html += '<div style="color:#b45309;margin-top:.3rem;">⚠️ للتثبّت:<ul>'
+            + d.avertissements.map(a => `<li>${echap(a)}</li>`).join('') + '</ul></div>';
+    }
+    msg.innerHTML = html;
+    const premier = document.querySelector('#mkowForm .mk-lu');
+    if (premier) premier.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (e) {
+    msg.innerHTML = `<span style="color:#b91c1c;">خطأ: ${echap(e.message)}</span>`;
+  }
+}
+</script>
+{% include 'mkowin/_suggestions.html' %}
+{% endblock %}

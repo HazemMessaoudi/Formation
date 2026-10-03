@@ -1,0 +1,96 @@
+{% extends "base_statistiques.html" %}
+{% block title %}التّقارير – نظام إدارة التكوين{% endblock %}
+
+{# V3 — Phase 5 : التّقرير البياني والتّحليلي. Période au choix, comparaison
+   sur 2 à 5 ans, graphiques interactifs, export PDF (V3.0.1 : export HTML retiré) ;
+   accès au التّقرير الكتابي pour la même période. #}
+
+{% block content %}
+{% include "_rapport_graphique_css.html" %}
+<style>
+  /* « btn-primary » n'a pas de style global : défini ici pour ce module. */
+  .btn.btn-primary { background:var(--primary); color:#fff; text-decoration:none; }
+  .btn.btn-primary:hover { background:var(--primary-l); }
+  a.btn { text-decoration:none; display:inline-flex; align-items:center; gap:.3rem; }
+  .rp-entete { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .rp-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+  .rp-periode { display:flex; gap:.6rem; align-items:flex-end; flex-wrap:wrap; padding:1rem 1.2rem; margin-bottom:1rem; }
+  .rp-periode label { display:flex; flex-direction:column; gap:.25rem; font-size:.82rem; color:var(--text-light); }
+  .rp-periode label.rp-case { flex-direction:row; align-items:center; gap:.4rem; padding-bottom:.55rem; }
+  .rp-periode select, .rp-periode input[type=number], .rp-periode input[type=date] { min-width:7rem; }
+  .rp-sous { color:var(--text-light); margin:-.4rem 0 1rem; font-size:.9rem; }
+</style>
+
+<div class="page-header rp-entete">
+  <h1>📊 التّقارير البيانيّة والتّحليليّة</h1>
+  <div class="rp-actions no-print">
+    <a class="btn btn-primary" href="{{ url_for('rapports_pdf', **params) }}" target="_blank">📄 التّقرير البياني PDF</a>
+    <a class="btn btn-cancel" href="{{ url_for('rapport_ecrit', **params_ecrit) }}">📝 التّقرير الكتابي</a>
+    <a class="btn btn-cancel" href="{{ url_for('rapports_details', **params_ecrit) }}">📋 التّقارير التّفصيليّة و Excel</a>
+    <a class="btn btn-cancel" href="{{ url_for('rapport_participant') }}">🪪 البطاقة التّقييميّة</a>
+    <a class="btn btn-cancel" href="{{ url_for('rapport_annuel', annee=p.annee) }}">📑 التّقرير السّنوي</a>
+  </div>
+</div>
+
+<form method="GET" action="{{ url_for('rapports') }}" class="card rp-periode no-print" id="formPeriode">
+  <label>نوع الفترة
+    <select name="type" class="form-control" id="selType">
+      <option value="trimestre" {{ 'selected' if p.type == 'trimestre' }}>ثلاثي</option>
+      <option value="semestre" {{ 'selected' if p.type == 'semestre' }}>نصف سنوي</option>
+      <option value="annee" {{ 'selected' if p.type == 'annee' }}>سنوي</option>
+      <option value="plage" {{ 'selected' if p.type == 'plage' }}>فترة محدّدة</option>
+    </select>
+  </label>
+  <label data-pour="cal">السّنة
+    <input type="number" name="annee" class="form-control" min="2000" max="2100" value="{{ p.annee }}">
+  </label>
+  <label data-pour="n">الفترة
+    <select name="n" class="form-control" id="selN" data-valeur="{{ p.n or 1 }}"></select>
+  </label>
+  <label data-pour="plage">من <input type="date" name="debut" class="form-control" value="{{ p.debut }}"></label>
+  <label data-pour="plage">إلى <input type="date" name="fin" class="form-control" value="{{ p.fin }}"></label>
+  <label>المقارنة على
+    <select name="annees" class="form-control">
+      {% for k in range(2, 6) %}<option value="{{ k }}" {{ 'selected' if k == d.n_annees + 1 }}>{{ k }} سنوات</option>{% endfor %}
+    </select>
+  </label>
+  <label class="rp-case"><input type="checkbox" name="toutes" value="1" {{ 'checked' if d.critere == 'toutes' }}>
+    احتساب الدّورات غير المختومة</label>
+  <button type="submit" class="btn btn-primary">عرض</button>
+</form>
+
+<p class="rp-sous">{{ p.libelle }}{% if d.critere == 'toutes' %} — مع الدّورات غير المختومة{% elif d.non_finalisees %} — {{ d.non_finalisees }} دورة غير مختومة غير محتسبة{% endif %}</p>
+
+{% include "_rapport_graphique_corps.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/rapports_graphes.js') }}"></script>
+<script>
+(function () {
+  'use strict';
+  const d = JSON.parse(document.getElementById('rgDonnees').textContent);
+  RapportsGraphes.dessinerTout(document.getElementById('rgRacine'), d);
+
+  const selType = document.getElementById('selType');
+  const selN = document.getElementById('selN');
+  const OPTIONS = { trimestre: ['الثّلاثي الأوّل', 'الثّلاثي الثّاني', 'الثّلاثي الثّالث', 'الثّلاثي الرّابع'],
+                    semestre: ['السّداسي الأوّل', 'السّداسي الثّاني'] };
+  function majPeriode() {
+    const t = selType.value, liste = OPTIONS[t] || [];
+    const actuel = selN.value || selN.dataset.valeur;
+    selN.innerHTML = liste.map(function (lib, i) {
+      return '<option value="' + (i + 1) + '"' + (String(i + 1) === String(actuel) ? ' selected' : '') + '>' + lib + '</option>';
+    }).join('');
+    document.querySelectorAll('#formPeriode [data-pour]').forEach(function (el) {
+      const pour = el.dataset.pour;
+      const visible = pour === 'plage' ? t === 'plage' : (pour === 'n' ? liste.length > 0 : t !== 'plage');
+      el.hidden = !visible;
+      el.querySelectorAll('input, select').forEach(function (i) { i.disabled = !visible; });
+    });
+  }
+  selType.addEventListener('change', majPeriode);
+  majPeriode();
+})();
+</script>
+{% endblock %}

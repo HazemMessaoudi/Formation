@@ -1,0 +1,8 @@
+# Données propres à chaque poste (voir .livraison_exclure)
+data/
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+Outils/*.exe

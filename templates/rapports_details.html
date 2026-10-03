@@ -1,0 +1,132 @@
+{% extends "base_statistiques.html" %}
+{% block title %}التّقارير التّفصيليّة – نظام إدارة التكوين{% endblock %}
+
+{# V3 — Phase 6b : التّقارير التّفصيليّة. Un onglet par tableau (المكوّنون،
+   الدّورات، الأشهر، الجنس، الفئة العمريّة، الصّفة، المستوى، الصّيغة،
+   التّعاون) ; les mêmes tableaux partent dans le classeur Excel. #}
+
+{% block content %}
+<style>
+  .btn.btn-primary { background:var(--primary); color:#fff; text-decoration:none; }
+  .btn.btn-primary:hover { background:var(--primary-l); }
+  a.btn { text-decoration:none; display:inline-flex; align-items:center; gap:.3rem; }
+  .rd-entete { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .rd-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+  .rd-periode { display:flex; gap:.6rem; align-items:flex-end; flex-wrap:wrap; padding:1rem 1.2rem; margin-bottom:1rem; }
+  .rd-periode label { display:flex; flex-direction:column; gap:.25rem; font-size:.82rem; color:var(--text-light); }
+  .rd-periode label.rd-case { flex-direction:row; align-items:center; gap:.4rem; padding-bottom:.55rem; }
+  .rd-periode select, .rd-periode input[type=number], .rd-periode input[type=date] { min-width:7rem; }
+  .rd-onglets { display:flex; gap:.3rem; flex-wrap:wrap; margin-bottom:.8rem; }
+  .rd-onglet { font:inherit; font-size:.88rem; padding:.45rem .9rem; border-radius:999px; cursor:pointer;
+               border:1px solid var(--border); background:var(--card-bg); color:var(--text); }
+  .rd-onglet[aria-selected="true"] { background:var(--primary); color:#fff; border-color:var(--primary); }
+  .rd-panneau { padding:1rem 1.1rem; }
+  .rd-panneau h2 { font-size:1.05rem; margin:0 0 .7rem; color:var(--text); }
+  .rd-wrap { overflow-x:auto; }
+  .rd-table { width:100%; border-collapse:collapse; font-size:.88rem; }
+  .rd-table th, .rd-table td { border-bottom:1px solid var(--border); padding:.45rem .55rem; text-align:right; color:var(--text); white-space:nowrap; }
+  .rd-table th { color:var(--text-light); font-weight:700; background:var(--glow-1); }
+  .rd-table td.num { text-align:center; font-variant-numeric:tabular-nums; }
+  .rd-table td.large { white-space:normal; min-width:14rem; }
+  .rd-table tfoot td { font-weight:800; border-top:2px solid var(--border); }
+  .rd-note { font-size:.8rem; color:var(--text-light); margin:.6rem 0 0; }
+  .rd-vide { text-align:center; color:var(--text-light); padding:1.5rem; }
+</style>
+
+<div class="page-header rd-entete">
+  <h1>📋 التّقارير التّفصيليّة</h1>
+  <div class="rd-actions no-print">
+    <a class="btn btn-primary" href="{{ url_for('rapports_details_excel', **params) }}">📥 تصدير Excel (كلّ الجداول)</a>
+    <a class="btn btn-cancel" href="{{ url_for('rapports', **params) }}">📊 التّقرير البياني</a>
+  </div>
+</div>
+
+<form method="GET" action="{{ url_for('rapports_details') }}" class="card rd-periode no-print" id="formPeriode">
+  <label>نوع الفترة
+    <select name="type" class="form-control" id="selType">
+      <option value="trimestre" {{ 'selected' if p.type == 'trimestre' }}>ثلاثي</option>
+      <option value="semestre" {{ 'selected' if p.type == 'semestre' }}>نصف سنوي</option>
+      <option value="annee" {{ 'selected' if p.type == 'annee' }}>سنوي</option>
+      <option value="plage" {{ 'selected' if p.type == 'plage' }}>فترة محدّدة</option>
+    </select>
+  </label>
+  <label data-pour="cal">السّنة <input type="number" name="annee" class="form-control" min="2000" max="2100" value="{{ p.annee }}"></label>
+  <label data-pour="n">الفترة <select name="n" class="form-control" id="selN" data-valeur="{{ p.n or 1 }}"></select></label>
+  <label data-pour="plage">من <input type="date" name="debut" class="form-control" value="{{ p.debut }}"></label>
+  <label data-pour="plage">إلى <input type="date" name="fin" class="form-control" value="{{ p.fin }}"></label>
+  <label class="rd-case"><input type="checkbox" name="toutes" value="1" {{ 'checked' if d.critere == 'toutes' }}> احتساب الدّورات غير المختومة</label>
+  <input type="hidden" name="onglet" id="champOnglet" value="{{ onglet }}">
+  <button type="submit" class="btn btn-primary">عرض</button>
+</form>
+
+<p style="color:var(--text-light);margin:-.3rem 0 .9rem;">{{ p.libelle }}{% if d.critere == 'toutes' %} — مع الدّورات غير المختومة{% elif d.non_finalisees %} — {{ d.non_finalisees }} دورة غير مختومة غير محتسبة{% endif %}</p>
+
+<div class="rd-onglets" role="tablist" aria-label="الجداول">
+  {% for t in d.tableaux %}
+    <button type="button" class="rd-onglet" role="tab" id="og-{{ t.id }}" aria-controls="pn-{{ t.id }}"
+            aria-selected="{{ 'true' if t.id == onglet else 'false' }}" data-onglet="{{ t.id }}">{{ t.titre }}</button>
+  {% endfor %}
+</div>
+
+{% for t in d.tableaux %}
+  <section class="card rd-panneau" role="tabpanel" id="pn-{{ t.id }}" aria-labelledby="og-{{ t.id }}" {{ 'hidden' if t.id != onglet }}>
+    <h2>{{ t.titre }}</h2>
+    <div class="rd-wrap">
+      <table class="rd-table{{ ' table-triable' if t.id != 'resume' }}">
+        <thead><tr>{% for e in t.entetes %}<th>{{ e }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for l in t.lignes %}
+            <tr>{% for v in l %}<td class="{{ 'num' if v is number else ('large' if loop.first and t.id == 'dorrat' else '') }}">{{ ('%.15g' | format(v)) if v is float else v }}</td>{% endfor %}</tr>
+          {% else %}
+            <tr><td colspan="{{ t.entetes | length }}" class="rd-vide">لا توجد معطيات لهذه الفترة</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if t.total and t.lignes %}
+          <tfoot><tr>{% for v in t.total %}<td class="{{ 'num' if v is number }}">{{ ('%.15g' | format(v)) if v is float else v }}</td>{% endfor %}</tr></tfoot>
+        {% endif %}
+      </table>
+    </div>
+    {% if t.note %}<p class="rd-note">ℹ️ {{ t.note }}</p>{% endif %}
+  </section>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+  /* onglets */
+  const champ = document.getElementById('champOnglet');
+  document.querySelectorAll('.rd-onglet').forEach(function (b) {
+    b.addEventListener('click', function () {
+      const id = b.dataset.onglet;
+      document.querySelectorAll('.rd-onglet').forEach(function (x) { x.setAttribute('aria-selected', String(x === b)); });
+      document.querySelectorAll('.rd-panneau').forEach(function (p) { p.hidden = p.id !== 'pn-' + id; });
+      champ.value = id;
+      try { history.replaceState(null, '', location.pathname + location.search.replace(/([?&])onglet=[^&]*/, '$1').replace(/[?&]$/, '')
+                                  + (location.search ? '&' : '?') + 'onglet=' + id); } catch (e) {}
+    });
+  });
+  /* sélecteur de période */
+  const selType = document.getElementById('selType');
+  const selN = document.getElementById('selN');
+  const OPTIONS = { trimestre: ['الثّلاثي الأوّل', 'الثّلاثي الثّاني', 'الثّلاثي الثّالث', 'الثّلاثي الرّابع'],
+                    semestre: ['السّداسي الأوّل', 'السّداسي الثّاني'] };
+  function majPeriode() {
+    const t = selType.value, liste = OPTIONS[t] || [];
+    const actuel = selN.value || selN.dataset.valeur;
+    selN.innerHTML = liste.map(function (lib, i) {
+      return '<option value="' + (i + 1) + '"' + (String(i + 1) === String(actuel) ? ' selected' : '') + '>' + lib + '</option>';
+    }).join('');
+    document.querySelectorAll('#formPeriode [data-pour]').forEach(function (el) {
+      const pour = el.dataset.pour;
+      const visible = pour === 'plage' ? t === 'plage' : (pour === 'n' ? liste.length > 0 : t !== 'plage');
+      el.hidden = !visible;
+      el.querySelectorAll('input, select').forEach(function (i) { i.disabled = !visible; });
+    });
+  }
+  selType.addEventListener('change', majPeriode);
+  majPeriode();
+})();
+</script>
+{% endblock %}

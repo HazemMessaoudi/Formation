@@ -1,0 +1,20 @@
+{
+ "nom": "سامي",
+ "prenom": "بن صالح",
+ "cin": "01234567",
+ "cin_date": "2020-01-13",
+ "identifiant_unique": "1234567890",
+ "adresse": "حيّ النّور القصرين",
+ "telephone_gsm": "98765432",
+ "telephone_adm": "77123456",
+ "diplome": "الإجازة الأساسيّة في الحقوق",
+ "grade": "نقيب",
+ "degre": "أ1",
+ "plan_fonctionnel": "ضابط",
+ "administration": "مركز التكوين الجهوي للديوانة بالقصرين",
+ "ministere": "وزارة الماليّة",
+ "email": "sami.bensalah@example.tn",
+ "banque": "البنك الوطني الفلاحي",
+ "agence": "القصرين",
+ "num_compte": "03000000001234567890"
+}

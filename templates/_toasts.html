@@ -1,0 +1,15 @@
+{# Zone des notifications « toast » (v1.5 — A11), partagée par base.html et accueil.html.
+   Succès / info : disparition automatique (5 s) ; erreur / avertissement : reste
+   jusqu'à fermeture, pour être lu. Le message est échappé par Jinja. #}
+<div id="toastZone" class="toast-zone" role="status" aria-live="polite">
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    {% set c = cat if cat in ('success','error','warning','info') else 'info' %}
+    <div class="toast toast-{{ c }}" data-duree="{{ 5000 if c in ('success','info') else 0 }}">
+      <span class="toast-ico">{{ {'success':'✔','error':'✖','warning':'⚠','info':'ℹ'}[c] }}</span>
+      <span class="toast-msg">{{ msg }}</span>
+      <button type="button" class="toast-x" title="إغلاق">×</button>
+    </div>
+  {% endfor %}
+{% endwith %}
+</div>

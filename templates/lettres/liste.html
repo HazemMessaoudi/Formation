@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}الإطلاع على المراسلات{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+  <h1>📂 المراسلات المسجَّلة</h1>
+  <a href="{{ url_for('nouvelle_lettre') }}" class="btn btn-add">➕ مراسلة جديدة</a>
+</div>
+
+{% if lettres %}
+<div class="card" style="padding:0;overflow:hidden;">
+  <table class="list-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>المرجع</th>
+        <th>النوع</th>
+        <th>الشهر</th>
+        <th>السنة</th>
+        <th>عدد الدورات</th>
+        <th>تاريخ الإنشاء</th>
+        <th>إجراءات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lettres %}
+      <tr>
+        <td class="num-cell">{{ loop.index }}</td>
+        <td dir="ltr"><strong>{{ l.ref_complet or '—' }}</strong></td>
+        <td>
+          <span class="badge {% if l.type=='interne' %}badge-blue{% else %}badge-green{% endif %}">
+            {{ 'داخلية' if l.type=='interne' else 'خارجية' }}
+          </span>
+        </td>
+        <td>{{ l.mois }}</td>
+        <td>{{ l.annee }}</td>
+        <td>{{ l.nb_formations }}</td>
+        <td dir="ltr">{{ l.date_creation[:10] if l.date_creation else '—' }}</td>
+        <td class="actions-td">
+          <a href="{{ url_for('detail_lettre', lettre_id=l.id) }}" class="btn-action btn-view" title="عرض">👁</a>
+          {% if l.ref_complet %}
+          <a href="{{ url_for('generer_lettre', lettre_id=l.id) }}" target="_blank" class="btn-action btn-edit" title="PDF">📄</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-msg">لا توجد مراسلات مسجَّلة بعد. <a href="{{ url_for('nouvelle_lettre') }}">أنشئ أول مراسلة</a></div>
+{% endif %}
+{% endblock %}

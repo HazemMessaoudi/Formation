@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+{% block title %}{% if lettre_edit %}تعديل مراسلة حرة{% else %}مراسلة حرة جديدة{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{% if lettre_edit %}✏️ تعديل مراسلة حرة{% else %}✉️ إعداد مراسلة حرة{% endif %}</h1>
+</div>
+
+<form id="formLibre" autocomplete="off">
+
+  <!-- ─── معلومات المراسلة ─────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">معلومات المراسلة</div>
+    <div class="form-grid-3">
+
+      <div class="form-group">
+        <label>نوع المراسلة</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="type" value="interne"
+              {% if not lettre_edit or lettre_edit.type=='interne' %}checked{% endif %}>
+            <span>داخلية</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="type" value="externe"
+              {% if lettre_edit and lettre_edit.type=='externe' %}checked{% endif %}>
+            <span>خارجية</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="mois">شهر المراسلة <span class="req">*</span></label>
+        <select id="mois" name="mois" required>
+          <option value="">— اختر الشهر —</option>
+          {% set mois_list = ['جانفي','فيفري','مارس','أفريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'] %}
+          {% for m in mois_list %}
+          <option {% if lettre_edit and lettre_edit.mois == m %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="annee">السنة <span class="req">*</span></label>
+        <input type="number" id="annee" name="annee"
+               value="{{ lettre_edit.annee if lettre_edit else now_year }}"
+               min="2020" max="2099" required>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─── محتوى المراسلة ──────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">محتوى المراسلة</div>
+
+    <div class="form-grid-2" style="margin-bottom:1rem;">
+      <div class="form-group">
+        <label for="destinataire">الموجَّهة إلى <span class="req">*</span></label>
+        <input type="text" id="destinataire" name="destinataire"
+               placeholder="مثال: السيد المدير الجهوي للديوانة بالقصرين"
+               value="{{ lettre_edit.destinataire if lettre_edit else '' }}"
+               required style="width:100%;">
+      </div>
+      <div class="form-group">
+        <label for="objet">الموضوع <span class="req">*</span></label>
+        <input type="text" id="objet" name="objet"
+               placeholder="موضوع المراسلة"
+               value="{{ lettre_edit.objet if lettre_edit else '' }}"
+               required style="width:100%;">
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:1rem;">
+      <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.5rem;">
+        <label style="margin:0;">مصاحيب <span style="color:var(--text-muted);font-size:.85rem;">(اختياري)</span></label>
+        <button type="button" onclick="ajouterMsahib()"
+                style="background:var(--primary);color:#fff;border:none;border-radius:6px;
+                       padding:.3rem .8rem;font-size:.88rem;cursor:pointer;font-family:inherit;">
+          ➕ إضافة
+        </button>
+      </div>
+      <div id="msahibList" style="display:flex;flex-direction:column;gap:.4rem;">
+        <!-- rows inserted by JS -->
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="corps">نص المراسلة <span class="req">*</span></label>
+      <textarea id="corps" name="corps" rows="10" required
+                placeholder="أكتب هنا نص المراسلة..."
+                style="width:100%;resize:vertical;font-family:inherit;font-size:1rem;padding:.7rem;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);color:var(--text);direction:rtl;">{{ lettre_edit.corps if lettre_edit else '' }}</textarea>
+    </div>
+  </div>
+
+  <!-- ─── الموجَّه لهم ──────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">الموجَّه لهم</div>
+    <div id="moujahTable" style="margin-bottom:.8rem;">
+      <!-- rows inserted by JS -->
+    </div>
+    <button type="button" onclick="ajouterMoujah()"
+            style="background:var(--primary);color:#fff;border:none;border-radius:7px;
+                   padding:.5rem 1.1rem;font-size:.93rem;cursor:pointer;font-family:inherit;">
+      ➕ إضافة جهة
+    </button>
+  </div>
+
+  <!-- ─── أزرار العمل ──────────────────────────────────────────────────── -->
+  <div class="actions-bar" id="actionsBar" style="gap:1rem; flex-wrap:wrap;">
+    <button type="button" class="btn btn-save" id="btnSauvegarder" onclick="sauvegarder()">
+      💾 حفظ المسودة
+    </button>
+    <button type="button" class="btn" id="btnConfirmer" onclick="ouvrirModal()"
+            style="display:none; background:var(--primary); color:#fff;">
+      ✅ تأكيد وإغلاق
+    </button>
+  </div>
+
+  <!-- ─── زر PDF (يظهر بعد الإغلاق) ───────────────────────────────────── -->
+  <div class="actions-bar" id="pdfBar" style="gap:1rem; display:none; margin-top:.8rem;">
+    <span id="refBadge" style="background:var(--primary);color:#fff;padding:.5rem 1rem;
+          border-radius:6px;font-weight:700;font-size:.95rem;letter-spacing:.5px;"></span>
+    <button type="button" class="btn btn-generate" id="btnGenerer" onclick="genererPDF()">
+      📄 إنشاء المراسلة (PDF)
+    </button>
+  </div>
+
+</form>
+
+<!-- ─── Modal تأكيد ─────────────────────────────────────────────────────── -->
+<div id="modalConfirm" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+     background:rgba(0,0,0,.55); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:var(--card-bg); border-radius:14px; padding:2rem 2rem 1.6rem;
+              max-width:460px; width:92%; box-shadow:0 12px 40px rgba(0,0,0,.35);
+              direction:rtl; text-align:right;">
+    <h3 style="margin:0 0 .6rem; color:var(--text); font-size:1.15rem;">🔒 تأكيد وإغلاق المراسلة</h3>
+    <p style="color:var(--text-muted); font-size:.88rem; margin:0 0 1.2rem;">
+      بعد التأكيد لن تتمكن من تعديل هذه المراسلة.
+    </p>
+
+    <div style="background:var(--bg); border-radius:9px; padding:.9rem 1rem; margin-bottom:1.4rem;">
+      <table style="width:100%; border-collapse:collapse; font-size:.92rem;">
+        <tr>
+          <td style="padding:.35rem .4rem; color:var(--text-muted); white-space:nowrap;">نوع المراسلة</td>
+          <td style="padding:.35rem .4rem; font-weight:700;" id="recap-type">—</td>
+        </tr>
+        <tr>
+          <td style="padding:.35rem .4rem; color:var(--text-muted); white-space:nowrap;">الموجَّهة إلى</td>
+          <td style="padding:.35rem .4rem; font-weight:600;" id="recap-dest">—</td>
+        </tr>
+        <tr>
+          <td style="padding:.35rem .4rem; color:var(--text-muted); white-space:nowrap;">الموضوع</td>
+          <td style="padding:.35rem .4rem; font-weight:600;" id="recap-objet">—</td>
+        </tr>
+        <tr>
+          <td style="padding:.35rem .4rem; color:var(--text-muted); white-space:nowrap;">الشهر / السنة</td>
+          <td style="padding:.35rem .4rem; font-weight:600;" id="recap-mois">—</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="display:flex; gap:.8rem;">
+      <button type="button" onclick="confirmer()"
+              style="background:#22c55e;color:#fff;border:none;border-radius:8px;
+                     padding:.65rem 1.4rem;font-size:.98rem;cursor:pointer;font-family:inherit;font-weight:600;">
+        ✔ نعم، تأكيد
+      </button>
+      <button type="button" onclick="fermerModal()"
+              style="background:#ef4444;color:#fff;border:none;border-radius:8px;
+                     padding:.65rem 1.4rem;font-size:.98rem;cursor:pointer;font-family:inherit;font-weight:600;">
+        ✖ لا، إلغاء
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Toast ──────────────────────────────────────────────────────────── -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+let savedLettreId = {{ lettre_edit.id | tojson if lettre_edit else 'null' }};
+
+// Show confirm button if we already have an ID (editing a draft)
+document.addEventListener('DOMContentLoaded', () => {
+  // Load existing مصاحب rows
+  {% if lettre_edit and lettre_edit.msahib %}
+  (function(){
+    try {
+      const ms = JSON.parse({{ lettre_edit.msahib | tojson }});
+      if (Array.isArray(ms)) ms.forEach(v => ajouterMsahib(v));
+      else if (typeof ms === 'string' && ms) ajouterMsahib(ms);
+    } catch(e) {
+      // plain string fallback
+      const raw = {{ lettre_edit.msahib | tojson }};
+      if (raw) ajouterMsahib(raw);
+    }
+  })();
+  {% endif %}
+
+  // Load existing الموجَّه لهم rows
+  {% if lettre_edit and lettre_edit.moujah_lahom %}
+  (function(){
+    try {
+      const list = JSON.parse({{ lettre_edit.moujah_lahom | tojson }});
+      if (Array.isArray(list)) list.forEach(r => ajouterMoujah(r.nom||'', r.type||''));
+    } catch(e) {}
+  })();
+  {% endif %}
+
+  {% if lettre_edit and lettre_edit.ref_complet %}
+  // Already locked — lock UI immediately
+  lockUI('{{ lettre_edit.ref_complet }}');
+  {% elif lettre_edit %}
+  // Draft in edit mode — show confirm button
+  document.getElementById('btnConfirmer').style.display = 'inline-flex';
+  {% endif %}
+});
+
+function getMsahibList() {
+  return Array.from(document.querySelectorAll('#msahibList .msahib-input'))
+    .map(i => i.value.trim()).filter(Boolean);
+}
+
+function getMoujahList() {
+  const rows = document.querySelectorAll('#moujahTable .moujah-row');
+  return Array.from(rows).map(r => ({
+    nom:  r.querySelector('.moujah-nom').value.trim(),
+    type: r.querySelector('.moujah-type').value,
+  })).filter(x => x.nom);
+}
+
+function payload() {
+  return {
+    type:         document.querySelector('input[name="type"]:checked')?.value || 'interne',
+    mois:         document.getElementById('mois').value.trim(),
+    annee:        parseInt(document.getElementById('annee').value),
+    destinataire: document.getElementById('destinataire').value.trim(),
+    objet:        document.getElementById('objet').value.trim(),
+    msahib:       JSON.stringify(getMsahibList()),
+    corps:        document.getElementById('corps').value.trim(),
+    moujah_lahom: getMoujahList(),
+  };
+}
+
+// ─── Msahib dynamic rows ────────────────────────────────────────────────────
+function ajouterMsahib(val='') {
+  const list = document.getElementById('msahibList');
+  const row  = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:.5rem;align-items:center;';
+  row.innerHTML = `
+    <input type="text" class="msahib-input" placeholder="مثال: نسخة من مقرر التعيين"
+           value="${val.replace(/"/g,'&quot;')}"
+           style="flex:1;padding:.45rem .7rem;border:1px solid var(--border);border-radius:6px;
+                  background:var(--card-bg);color:var(--text);font-family:inherit;font-size:.93rem;direction:rtl;">
+    <button type="button" onclick="this.parentElement.remove()"
+            style="flex:0 0 auto;background:#ef4444;color:#fff;border:none;border-radius:6px;
+                   padding:.4rem .7rem;cursor:pointer;font-size:.88rem;">✕</button>
+  `;
+  list.appendChild(row);
+  row.querySelector('.msahib-input').focus();
+}
+
+// ─── Moujah table helpers ───────────────────────────────────────────────────
+function ajouterMoujah(nom='', type='') {
+  const tbl = document.getElementById('moujahTable');
+  const row = document.createElement('div');
+  row.className = 'moujah-row';
+  row.style.cssText = 'display:flex;gap:.6rem;align-items:center;margin-bottom:.5rem;';
+  row.innerHTML = `
+    <input type="text" class="moujah-nom" placeholder="الجهة الموجَّهة إليها"
+           value="${nom.replace(/"/g,'&quot;')}"
+           style="flex:3;min-width:0;padding:.5rem .7rem;border:1px solid var(--border);border-radius:6px;
+                  background:var(--card-bg);color:var(--text);font-family:inherit;font-size:.93rem;direction:rtl;">
+    <select class="moujah-type"
+            style="flex:0 0 130px;padding:.5rem .5rem;border:1px solid var(--border);border-radius:6px;
+                   background:var(--card-bg);color:var(--text);font-family:inherit;font-size:.93rem;">
+      <option value="" ${type===''?'selected':''}>—</option>
+      <option value="للإعلام" ${type==='للإعلام'?'selected':''}>للإعلام</option>
+      <option value="للتعهد"  ${type==='للتعهد'?'selected':''}>للتعهد</option>
+    </select>
+    <button type="button" onclick="this.closest('.moujah-row').remove()"
+            style="flex:0 0 auto;background:#ef4444;color:#fff;border:none;border-radius:6px;
+                   padding:.45rem .8rem;cursor:pointer;font-size:.9rem;">✕</button>
+  `;
+  tbl.appendChild(row);
+}
+
+function validate() {
+  const p = payload();
+  if (!p.mois)         { showToast('يرجى اختيار الشهر', 'error'); return false; }
+  if (!p.destinataire) { showToast('يرجى إدخال الجهة الموجَّهة إليها', 'error'); return false; }
+  if (!p.objet)        { showToast('يرجى إدخال الموضوع', 'error'); return false; }
+  if (!p.corps)        { showToast('يرجى كتابة نص المراسلة', 'error'); return false; }
+  return p;
+}
+
+async function sauvegarder() {
+  const p = validate(); if (!p) return;
+  const btn = document.getElementById('btnSauvegarder');
+  btn.disabled = true; btn.textContent = '⏳ جاري الحفظ...';
+  try {
+    const url = savedLettreId
+      ? `/lettre/libre/${savedLettreId}/mettre-a-jour`
+      : '/lettre/libre/enregistrer';
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(p)
+    });
+    const d = await res.json();
+    if (d.succes) {
+      if (d.lettre_id) savedLettreId = d.lettre_id;
+      showToast('تم حفظ المسودة بنجاح ✓');
+      document.getElementById('btnConfirmer').style.display = 'inline-flex';
+    } else if (d.erreur) {
+      showToast(d.erreur, 'error');
+    } else {
+      showToast('خطأ في الحفظ', 'error');
+    }
+  } catch(e) { showToast('خطأ: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.innerHTML = '💾 حفظ المسودة'; }
+}
+
+// ─── Modal ─────────────────────────────────────────────────────────────────
+function ouvrirModal() {
+  if (!savedLettreId) { showToast('يرجى حفظ المسودة أولاً', 'error'); return; }
+  const p = payload();
+  document.getElementById('recap-type').textContent  = p.type === 'interne' ? 'داخلية' : 'خارجية';
+  document.getElementById('recap-dest').textContent  = p.destinataire || '—';
+  document.getElementById('recap-objet').textContent = p.objet || '—';
+  document.getElementById('recap-mois').textContent  = `${p.mois} ${p.annee}`;
+  document.getElementById('modalConfirm').style.display = 'flex';
+}
+
+function fermerModal() {
+  document.getElementById('modalConfirm').style.display = 'none';
+}
+
+async function confirmer() {
+  fermerModal();
+  const p = payload();
+  // First save latest changes, then validate+lock
+  try {
+    const url = savedLettreId
+      ? `/lettre/libre/${savedLettreId}/mettre-a-jour`
+      : '/lettre/libre/enregistrer';
+    const saveRes = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(p)
+    });
+    const saved = await saveRes.json();
+    if (!saved.succes) { showToast(saved.erreur || 'خطأ في الحفظ', 'error'); return; }
+    if (saved.lettre_id) savedLettreId = saved.lettre_id;
+
+    // Now lock
+    const valRes = await fetch(`/lettre/libre/${savedLettreId}/valider`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({type: p.type})
+    });
+    const val = await valRes.json();
+    if (val.succes) {
+      showToast('✅ تم تأكيد المراسلة وإغلاقها بنجاح');
+      lockUI(val.ref);
+    } else {
+      showToast(val.erreur || 'خطأ في التأكيد', 'error');
+    }
+  } catch(e) { showToast('خطأ: ' + e.message, 'error'); }
+}
+
+function lockUI(ref) {
+  // Disable all form inputs
+  document.querySelectorAll('#formLibre input, #formLibre select, #formLibre textarea').forEach(el => {
+    el.disabled = true;
+  });
+  // Disable msahib inputs
+  document.querySelectorAll('#msahibList input, #msahibList button').forEach(el => {
+    el.disabled = true;
+  });
+  const addMsahibBtn = document.querySelector('[onclick="ajouterMsahib()"]');
+  if (addMsahibBtn) addMsahibBtn.style.display = 'none';
+  // Disable moujah table inputs
+  document.querySelectorAll('#moujahTable input, #moujahTable select, #moujahTable button').forEach(el => {
+    el.disabled = true;
+  });
+  // Hide add-moujah button
+  const addMoujahBtn = document.querySelector('[onclick="ajouterMoujah()"]');
+  if (addMoujahBtn) addMoujahBtn.style.display = 'none';
+  // Hide draft/confirm buttons
+  document.getElementById('actionsBar').style.display = 'none';
+  // Show PDF bar with ref
+  const pdfBar = document.getElementById('pdfBar');
+  pdfBar.style.display = 'flex';
+  if (ref) document.getElementById('refBadge').textContent = ref;
+}
+
+function genererPDF() {
+  if (!savedLettreId) { showToast('يجب تأكيد المراسلة أولاً', 'error'); return; }
+  window.open(`/lettre/libre/${savedLettreId}/generer`, '_blank');
+  showToast('تم فتح المراسلة (PDF) ✓');
+}
+
+// showToast() : implémentation commune (static/js/ui.js, v1.5).
+</script>
+{% endblock %}

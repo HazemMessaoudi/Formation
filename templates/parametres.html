@@ -1,0 +1,621 @@
+{% extends "base_parametres.html" %}
+{% block title %}الإعدادات{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>⚙️ الإعدادات</h1>
+</div>
+
+<!-- ─── إعدادات المراسلات ─────────────────────────────────────────── -->
+<div class="card collapsible">
+  <div class="card-title collapse-head" onclick="toggleSection(this)">
+    <span class="collapse-arrow">▸</span> إعدادات المراسلات
+  </div>
+  <div class="collapse-body" style="display:none;">
+  <form method="post" autocomplete="off">
+    {# Identité du centre : lecture seule pour un مستعمل (le serveur refuse aussi). #}
+    <fieldset {% if not est_admin %}disabled{% endif %} style="border:0;padding:0;margin:0;">
+    {% if not est_admin %}
+    <p style="color:var(--text-light);font-size:.87rem;margin:0 0 .8rem;">🔒 للاطّلاع فقط — التعديل من مشمولات المشرف العام.</p>
+    {% endif %}
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>اسم المسؤول</label>
+        <input type="text" name="nom_responsable" value="{{ config.get('nom_responsable','') }}" placeholder="مثال: حازم مسعودي">
+      </div>
+      <div class="form-group">
+        <label>رتبة المسؤول</label>
+        <select name="titre_responsable">
+          {% for g in grades %}
+          <option value="{{ g }}" {% if config.get('titre_responsable') == g %}selected{% endif %}>{{ g }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>اسم المركز</label>
+        <input type="text" name="nom_centre" value="{{ config.get('nom_centre','مركز التكوين الديواني بالقصرين') }}" placeholder="مركز التكوين الديواني بالقصرين">
+        <small style="color:var(--text-light);font-size:.82rem;">يظهر في رأس وتذييل المراسلة PDF</small>
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>بادئة المرجع (Réf Prefix)</label>
+        <input type="text" name="ref_prefix" dir="ltr" value="{{ config.get('ref_prefix','END-3-01-02') }}">
+        <small style="color:var(--text-light);font-size:.82rem;">المرجع سيكون: PREFIX-السنة-رقم متسلسل</small>
+      </div>
+      <div class="form-group">
+        <label>اسم المدير العام للمدرسة الوطنيّة</label>
+        <input type="text" name="nom_directeur_general"
+               value="{{ config.get('nom_directeur_general','') }}"
+               placeholder="مثال: عبد الحكيم عبيدي">
+        <small style="color:var(--text-light);font-size:.82rem;">يظهر في إمضاء مذكّرة التكوين الداخليّة</small>
+      </div>
+      <div class="form-group">
+        <label>رتبة المدير العام</label>
+        <select name="titre_directeur_general">
+          {% for g in grades %}
+          <option value="{{ g }}" {% if config.get('titre_directeur_general') == g %}selected{% endif %}>{{ g }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="card-title" style="margin-top:1.8rem;">جهات الرّجوع بالنّظر</div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>الإدارة الجهويّة (مرجع نظر المكاتب)</label>
+        <input type="text" name="admin_regionale"
+               value="{{ config.get('admin_regionale','') }}"
+               placeholder="الإدارة الجهويّة للدّيوانة بالقصرين">
+        <small style="color:var(--text-light);font-size:.82rem;">
+          كلّ مكتب يُذكر في قائمة المشاركين يُعوَّض بهذه الإدارة في نصّ المذكّرة والبطاقة البيداغوجيّة
+        </small>
+      </div>
+      <div class="form-group">
+        <label>وحدة الحرس الدّيواني (مرجع نظر الفرق)</label>
+        <input type="text" name="unite_garde"
+               value="{{ config.get('unite_garde','') }}"
+               placeholder="الوحدة الرّابعة للحرس الدّيواني بقفصة">
+        <small style="color:var(--text-light);font-size:.82rem;">
+          كلّ فرقة تُذكر في قائمة المشاركين تُعوَّض بهذه الوحدة
+        </small>
+      </div>
+    </div>
+
+    <div class="card-title" style="margin-top:1.8rem;">معطيات المدرسة (أسفل المذكّرة)</div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>البريد الإلكتروني</label>
+        <input type="text" name="ecole_email" dir="ltr"
+               value="{{ config.get('ecole_email','') }}" placeholder="end.dfrs@douane.gov.tn">
+      </div>
+      <div class="form-group">
+        <label>موقع الواب</label>
+        <input type="text" name="ecole_web" dir="ltr"
+               value="{{ config.get('ecole_web','') }}"
+               placeholder="www.douane.gov.tn/structures-de-formation">
+      </div>
+      <div class="form-group">
+        <label>الهاتف</label>
+        <input type="text" name="ecole_tel" dir="ltr"
+               value="{{ config.get('ecole_tel','') }}" placeholder="72205722">
+      </div>
+      <div class="form-group">
+        <label>الفاكس</label>
+        <input type="text" name="ecole_fax" dir="ltr"
+               value="{{ config.get('ecole_fax','') }}" placeholder="72205636">
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>العنوان</label>
+        <input type="text" name="ecole_adresse"
+               value="{{ config.get('ecole_adresse','') }}"
+               placeholder="المدرسة الوطنيّة للدّيوانة – فندق الجديد – نابل – 8012">
+      </div>
+    </div>
+
+    {% if est_admin %}
+    <div class="actions-bar" style="gap:1rem;margin-top:1.5rem;justify-content:flex-start;">
+      <button type="submit" class="btn btn-save">💾 حفظ الإعدادات</button>
+    </div>
+    {% endif %}
+    </fieldset>
+  </form>
+
+  {% if police %}
+  <div style="margin-top:1.4rem;padding:.8rem 1rem;border-radius:8px;
+              border:1px solid {{ '#86efac' if police.arial else '#fca5a5' }};
+              background:{{ '#f0fdf4' if police.arial else '#fef2f2' }};font-size:.88rem;">
+    <div style="font-weight:700;margin-bottom:.25rem;">
+      {{ '✅' if police.arial else '⚠️' }} خطّ وثائق الـPDF: {{ police.nom }}
+    </div>
+    {% if police.arial %}
+      <div style="color:var(--text-muted);">الوثائق تُطبع بخطّ Arial.</div>
+    {% else %}
+      <div style="color:var(--text-muted);">
+        لم يُعثر على خطّ Arial في هذا الجهاز، فاستُعمل خطّ بديل بنفس المقاسات.
+        لاستعمال Arial: انسخ الملفّين <code dir="ltr">arial.ttf</code> و
+        <code dir="ltr">arialbd.ttf</code> من <code dir="ltr">C:\Windows\Fonts</code>
+        إلى مجلّد <code dir="ltr">fonts/</code> داخل التطبيق ثمّ أعد تشغيله.
+      </div>
+    {% endif %}
+    <div dir="ltr" style="color:var(--text-light);font-size:.78rem;margin-top:.3rem;">
+      {{ police.regular }}
+    </div>
+  </div>
+  {% endif %}
+  </div><!-- /collapse-body -->
+</div>
+
+<!-- ─── إدارة الرتب ───────────────────────────────────────────────── -->
+<div class="card collapsible">
+  <div class="card-title card-title-flex collapse-head" onclick="toggleSection(this)">
+    <span><span class="collapse-arrow">▸</span> إدارة الرتب</span>
+    <button class="btn btn-add" onclick="event.stopPropagation();document.getElementById('modal-grade').style.display='flex'">➕ إضافة رتبة</button>
+  </div>
+  <div class="collapse-body" style="display:none;">
+  <div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.8rem;">
+    {% for g in grades %}
+    <span class="grade-chip" id="chip-g-{{ loop.index }}">
+      {{ g }}
+      <button class="grade-chip-del" onclick="deleteItem('/api/grades/supprimer','{{ g }}','chip-g-{{ loop.index }}')" title="حذف">×</button>
+    </span>
+    {% endfor %}
+  </div>
+  </div><!-- /collapse-body -->
+</div>
+
+<!-- ─── إدارة المواقع ─────────────────────────────────────────────── -->
+<div class="card collapsible">
+  <div class="card-title card-title-flex collapse-head" onclick="toggleSection(this)">
+    <span><span class="collapse-arrow">▸</span> إدارة المواقع (أماكن التكوين)</span>
+    <button class="btn btn-add" onclick="event.stopPropagation();document.getElementById('modal-lieu').style.display='flex'">➕ إضافة موقع</button>
+  </div>
+  <div class="collapse-body" style="display:none;">
+  <div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.8rem;">
+    {% for l in lieux %}
+    <span class="grade-chip" id="chip-l-{{ loop.index }}">
+      📍 {{ l }}
+      <button class="grade-chip-del" onclick="deleteItem('/api/lieux/supprimer','{{ l }}','chip-l-{{ loop.index }}')" title="حذف">×</button>
+    </span>
+    {% endfor %}
+    {% if not lieux %}
+    <span style="color:var(--text-light);font-size:.9rem;">لا توجد مواقع مسجَّلة بعد</span>
+    {% endif %}
+  </div>
+  </div><!-- /collapse-body -->
+</div>
+
+<!-- ─── إدارة المستخدمين ───────────────────────────────────────────── -->
+{# v1.7 : réservé au مشرف عام (le serveur refusait déjà toute action). #}
+{% if est_admin %}
+<div class="card collapsible">
+  <div class="card-title card-title-flex collapse-head" onclick="toggleSection(this)">
+    <span><span class="collapse-arrow">▸</span> 🔐 إدارة المستخدمين</span>
+    <button class="btn btn-add" onclick="event.stopPropagation();document.getElementById('modal-user').style.display='flex'">➕ إضافة مستخدم</button>
+  </div>
+  <div class="collapse-body" style="display:none;">
+  <table style="width:100%;border-collapse:collapse;margin-top:.8rem;font-size:.92rem;">
+    <thead>
+      <tr style="background:var(--primary);color:#fff;text-align:right;">
+        <th style="padding:.55rem 1rem;border-radius:6px 0 0 6px;">اسم المستخدم</th>
+        <th style="padding:.55rem 1rem;">الدور</th>
+        <th style="padding:.55rem 1rem;">تاريخ الإضافة</th>
+        <th style="padding:.55rem 1rem;border-radius:0 6px 6px 0;text-align:center;">إجراءات</th>
+      </tr>
+    </thead>
+    <tbody id="users-tbody">
+      {% for u in users %}
+      <tr style="border-bottom:1px solid var(--border);" id="user-row-{{ u.id }}">
+        <td style="padding:.6rem 1rem;font-weight:bold;">
+          {{ u.username }}
+          {% if u.username == current_user %}<span style="font-size:.75rem;color:var(--primary-txt, var(--primary));margin-right:.4rem;">(أنت)</span>{% endif %}
+        </td>
+        <td style="padding:.6rem 1rem;">
+          {% if u.username == current_user %}
+          <span class="badge badge-blue" style="font-size:.8rem;">{{ 'مشرف عام' if u.role == 'admin' else 'مستعمل' }}</span>
+          {% else %}
+          <select class="role-select" data-user="{{ u.username }}" data-avant="{{ u.role or 'user' }}"
+                  onchange="changerRole(this)"
+                  style="padding:.25rem .5rem;border:1px solid var(--border);border-radius:6px;font-size:.85rem;background:var(--card-bg, #fff);color:inherit;">
+            <option value="user" {% if u.role != 'admin' %}selected{% endif %}>مستعمل</option>
+            <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>مشرف عام</option>
+          </select>
+          {% endif %}
+        </td>
+        <td style="padding:.6rem 1rem;color:var(--text-light);font-size:.85rem;">{{ u.date_ajout[:10] if u.date_ajout else '' }}</td>
+        <td style="padding:.6rem 1rem;text-align:center;display:flex;gap:.5rem;justify-content:center;">
+          <button class="btn" style="font-size:.8rem;padding:.25rem .7rem;"
+            onclick="openChangePwd('{{ u.username }}')">🔑 تغيير كلمة المرور</button>
+          {% if u.username != current_user %}
+          <button class="btn" style="font-size:.8rem;padding:.25rem .7rem;background:var(--red);color:#fff;border-color:var(--red);"
+            onclick="deleteUser('{{ u.username }}', {{ u.id }})">🗑 حذف</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p style="color:var(--text-light);font-size:.83rem;margin:.7rem 0 0;">
+    ℹ️ يمكن تعيين أكثر من مشرف عام. لا يمكن تغيير دور حسابك الحالي، وتبقى المنظومة دائمًا بمشرف عام واحد على الأقلّ.
+    في حال نسيان كلمة مرور المشرف: أغلق البرنامج ثمّ شغّل <strong>recuperer_admin.bat</strong> من مجلّد البرنامج.
+  </p>
+  </div><!-- /collapse-body -->
+</div>
+{% endif %}
+
+<!-- ─── ضبط المستحقّات المالية ─────────────────────────────────────── -->
+{#  Les trois écrans de réglage des مستحقّات vivent ICI : le قسم des
+    مستحقّات ne garde que le travail quotidien. #}
+<div class="card">
+  <div class="card-title">💰 ضبط المستحقّات المالية</div>
+  <p style="color:var(--text-light);font-size:.87rem;margin:.2rem 0 .9rem;line-height:1.7;">
+    الجداول والمراجع التي تُحتسب وتُعمَّر بها وثائق الخلاص.
+  </p>
+  <div class="param-liens">
+    <a href="{{ url_for('mustahaqqat_bareme') }}" class="param-lien">
+      <span class="param-lien__ico">⚖️</span>
+      <span>
+        <span class="param-lien__nom">جدول الأصناف</span>
+        <span class="param-lien__desc">إسناد كلّ رتبة إلى صنفها</span>
+      </span>
+    </a>
+    <a href="{{ url_for('mustahaqqat_bareme_mali') }}" class="param-lien">
+      <span class="param-lien__ico">💰</span>
+      <span>
+        <span class="param-lien__nom">الجدول المالي</span>
+        <span class="param-lien__desc">مبلغ الساعة حسب الصنف</span>
+      </span>
+    </a>
+    {% if est_admin %}
+    <a href="{{ url_for('khalas_parametres') }}" class="param-lien">
+      <span class="param-lien__ico">🖨️</span>
+      <span>
+        <span class="param-lien__nom">إعدادات وثائق الخلاص</span>
+        <span class="param-lien__desc">المراجع القانونية والإمضاء</span>
+      </span>
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ─── الأمان والصيانة (v1.5) ─────────────────────────────────────── -->
+{% if est_admin %}
+<div class="card" id="carteSecurite">
+  <div class="card-title">🛡️ الأمان والصيانة</div>
+  <form method="post" action="{{ url_for('parametres_securite') }}" class="securite-ligne">
+    <label for="delai_inactivite" style="font-weight:700;">الخروج التلقائي عند عدم النشاط</label>
+    <select name="delai_inactivite" id="delai_inactivite">
+      {% for d in (0, 15, 30, 60, 120) %}
+      <option value="{{ d }}" {% if delai_inactivite_regle == d %}selected{% endif %}>
+        {{ 'معطّل' if d == 0 else (d ~ ' دقيقة' if d < 60 else ('ساعة واحدة' if d == 60 else 'ساعتان')) }}
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-save">💾 حفظ</button>
+  </form>
+  <p class="securite-aide">
+    يُغلق البرنامج الجلسة إذا بقي الجهاز دون أيّ استعمال طوال هذه المدّة، مع تنبيه قبلها بدقيقة.
+    الكتابة المتواصلة في أيّ خانة تُعدّ نشاطًا، ولا تُغلق الجلسة أثناءها.
+  </p>
+
+  <div class="securite-sep"></div>
+  <div style="font-weight:700;margin-bottom:.4rem;">💾 النسخ الاحتياطي</div>
+  <p class="securite-aide" style="margin-top:0;">
+    يأخذ البرنامج آليًّا نسخة عند كلّ تشغيل، ونسخة كلّ يوم ولو بقي مفتوحًا. ويحتفظ بها بالتدرّج:
+    آخر 5 نسخ من اليوم، ونسخة عن كلّ يوم من الأيّام السبعة الأخيرة، وعن كلّ أسبوع من الأسابيع الأربعة الأخيرة، وعن كلّ شهر من الأشهر الاثني عشر الأخيرة.
+    {% if sauvegardes_nb %}عدد النسخ المحفوظة: <strong>{{ sauvegardes_nb }}</strong> — آخرها بتاريخ <strong dir="ltr">{{ sauvegardes_derniere }}</strong>.
+    {% else %}لا توجد نسخة محفوظة بعد.{% endif %}
+  </p>
+  <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
+    <a href="{{ url_for('telecharger_sauvegarde') }}" class="btn btn-save" data-sans-apercu>⬇ تنزيل نسخة كاملة (zip)</a>
+    <form method="post" action="{{ url_for('creer_sauvegarde') }}" style="margin:0;">
+      <button type="submit" class="btn btn-cancel">➕ إنشاء نسخة الآن داخل البرنامج</button>
+    </form>
+  </div>
+
+  {# v1.7 — الختم الرّقمي #}
+  <div class="securite-sep"></div>
+  <div style="font-weight:700;margin-bottom:.4rem;">🔏 الختم الرقمي على الوثائق</div>
+  <form method="post" action="{{ url_for('parametres_cachet') }}" class="securite-ligne">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+    <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+      <input type="checkbox" name="cachet_actif" value="1" {% if config.get('cachet_actif') == '1' %}checked{% endif %}>
+      وضع صورة الختم آليًّا على المراسلات والمذكّرات
+    </label>
+    <button type="submit" class="btn btn-save">💾 حفظ</button>
+  </form>
+  <p class="securite-aide">
+    معطّل افتراضيًّا: عند التفعيل يطبع كلّ مستعمل وثائق مختومة.
+    {% if cachet_present %}صورة الختم موجودة.{% else %}<strong>لا توجد صورة ختم</strong>: ضع الملفّ <bdi dir="ltr">cachet.png</bdi> داخل المجلّد <bdi dir="ltr">data</bdi> للبرنامج.{% endif %}
+  </p>
+
+  {# v1.7 — copie externe vérifiée #}
+  <div class="securite-sep"></div>
+  <div style="font-weight:700;margin-bottom:.4rem;">🔌 نسخة خارجيّة (مفتاح USB، قرص خارجي، مجلّد شبكة)</div>
+  <p class="securite-aide" style="margin-top:0;">
+    {% if sauv_ext.derniere %}آخر نسخة خارجيّة: <strong dir="ltr">{{ sauv_ext.derniere }}</strong>{% if sauv_ext.destination %} نحو <bdi dir="ltr">{{ sauv_ext.destination }}</bdi>{% endif %}.
+    {% else %}لم تُؤخذ أيّ نسخة خارجيّة بعد.{% endif %}
+    تُحفظ النسخة في مجلّد «{{ 'نسخ_منظومة_التكوين' }}» داخل الوجهة، بعد فحص سلامتها.
+  </p>
+  <form method="post" action="{{ url_for('sauvegarde_externe') }}" class="securite-ligne" style="flex-wrap:wrap;">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+    {% if lecteurs %}
+    <select name="lecteur" id="sauvLecteur" onchange="document.getElementById('sauvChemin').value='';">
+      {% for l in lecteurs %}
+      <option value="{{ l.racine }}">{{ l.racine }} {{ '— قرص قابل للنزع (USB)' if l.amovible else '— قرص' }}</option>
+      {% endfor %}
+    </select>
+    <span style="color:var(--text-light);">أو</span>
+    {% endif %}
+    <input type="text" name="chemin" id="sauvChemin" dir="ltr" placeholder="E:\ أو مسار مجلّد" value=""
+           style="min-width:220px;padding:.45rem .6rem;border:1px solid var(--border);border-radius:8px;">
+    <button type="submit" class="btn btn-save">🔌 نسخ الآن</button>
+  </form>
+  {% if not lecteurs %}
+  <p class="securite-aide">لم يُعثر على قرص خارجي موصول: أوصل المفتاح ثمّ أعد تحميل الصفحة، أو اكتب مسار الوجهة.</p>
+  {% endif %}
+
+  {# V3.1 — النسخة المرآة #}
+  {% if miroir_etat %}
+  <div class="securite-sep" id="carteMiroir"></div>
+  <div style="font-weight:700;margin-bottom:.4rem;">🪞 النسخة المرآة</div>
+  <p class="securite-aide" style="margin-top:0;">
+    نسخة من قاعدة البيانات تُحيَّن آليًّا بعد كلّ تغيير، في مجلّد مخفيّ خارج مجلّد البرنامج.
+    إن فُقد ملفّ القاعدة يسترجعها البرنامج منها آليًّا عند التّشغيل، وإن تلف يفتح صفحة استرجاع
+    تطلب اسم وكلمة مرور مشرف عام.
+    {% if miroir_etat.derniere %}آخر تحيين: <strong dir="ltr">{{ miroir_etat.derniere }}</strong>.{% else %}لم تُحيَّن بعد.{% endif %}
+    حجم القاعدة الحالي: <strong>{{ miroir_etat.taille_base }}</strong>.
+  </p>
+  {% if miroir_etat.erreur %}
+  <p class="securite-aide" style="color:#b91c1c;">⚠ تعذّر آخر تحيين في أحد الأماكن: <bdi dir="ltr">{{ miroir_etat.erreur }}</bdi></p>
+  {% endif %}
+  <p class="securite-aide">المكان الافتراضي (مخفيّ): <bdi dir="ltr" style="word-break:break-all;">{{ miroir_etat.dossier_defaut }}</bdi></p>
+  <form method="post" action="{{ url_for('parametres_miroir') }}" class="securite-ligne" style="flex-wrap:wrap;">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+    <label for="miroirEmplacement" style="font-weight:700;">مكان إضافيّ (قرص آخر أو مجلّد شبكة)</label>
+    <input type="text" name="emplacement" id="miroirEmplacement" dir="ltr" placeholder="D:\ أو مسار مجلّد"
+           value="{{ miroir_etat.emplacement }}"
+           style="min-width:220px;padding:.45rem .6rem;border:1px solid var(--border);border-radius:8px;">
+    <button type="submit" class="btn btn-save">💾 حفظ المكان</button>
+    {% if miroir_etat.emplacement %}
+    <button type="submit" name="defaut" value="1" class="btn btn-cancel">↺ الاكتفاء بالمكان الافتراضي</button>
+    {% endif %}
+  </form>
+  <div style="display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.6rem;">
+    <form method="post" action="{{ url_for('miroir_maintenant') }}" style="margin:0;">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <button type="submit" class="btn btn-cancel">🔄 تحيين المرآة الآن</button>
+    </form>
+    {% if miroir_etat.copies %}
+    <form method="post" action="{{ url_for('miroir_restaurer') }}" class="securite-ligne" style="margin:0;flex-wrap:wrap;"
+          data-confirm="استرجاع النسخة المختارة مكان القاعدة الحاليّة؟ ستُحفظ القاعدة الحاليّة جانبًا في data\backups، وستُطالَب بإعادة الدخول.">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <select name="copie" aria-label="النسخة المراد استرجاعها">
+        {% for c in miroir_etat.copies %}
+        <option value="{{ c.chemin }}">{{ 'المرآة' if c.origine == 'miroir' else 'المرآة السابقة' }} — {{ c.date }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-cancel">♻️ استرجاع من المرآة</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {# V3.1 — الأرشيف السّنوي #}
+  <div class="securite-sep"></div>
+  <div style="font-weight:700;margin-bottom:.4rem;">🗄️ الأرشيف السّنوي</div>
+  <p class="securite-aide" style="margin-top:0;">
+    عند فتح سجلّ سنة جديدة تُحفظ آليًّا نسخة ثابتة (للقراءة فقط) من القاعدة كما كانت عند إقفال السّنة السّابقة،
+    في المجلّد <bdi dir="ltr">data\archives</bdi> وفي مكان المرآة. تبقى كلّ المعطيات في القاعدة الرّئيسيّة، فتعمل المقارنات بين السّنوات كما هي.
+  </p>
+  {% if miroir_etat.archives %}
+  <ul class="securite-aide" style="margin:.2rem 1.2rem 0;">
+    {% for a in miroir_etat.archives %}
+    <li>أرشيف سنة <strong>{{ a.annee }}</strong> — <bdi dir="ltr">{{ a.date }}</bdi> — {{ a.taille_txt }}
+      — <a href="{{ url_for('archive_telecharger', annee=a.annee) }}" data-sans-apercu>⬇ تنزيل</a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="securite-aide">لا يوجد أرشيف بعد: يُنشأ أوّل أرشيف عند فتح سجلّ السّنة الموالية.</p>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ─── Modals ─────────────────────────────────────────────────────── -->
+<!-- Modal: إضافة مستخدم -->
+<div id="modal-user" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">إضافة مستخدم جديد</div>
+    <input type="text" id="inp-user-name" class="modal-input" placeholder="اسم المستخدم" autocomplete="off">
+    <div class="pwd-wrap" style="margin-top:.6rem;">
+      <input type="password" id="inp-user-pwd" class="modal-input" style="margin-bottom:0;" placeholder="كلمة المرور" autocomplete="new-password">
+      <button type="button" class="pwd-eye" onclick="toggleEye(this)" tabindex="-1" title="إظهار/إخفاء">👁️</button>
+    </div>
+    <label style="display:block;margin-top:.7rem;font-size:.88rem;">الدور
+      <select id="inp-user-role" class="modal-input" style="margin-top:.3rem;">
+        <option value="user" selected>مستعمل</option>
+        <option value="admin">مشرف عام</option>
+      </select>
+    </label>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeM('modal-user')">إلغاء</button>
+      <button class="btn btn-save" onclick="addUser()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: تغيير كلمة المرور -->
+<div id="modal-chg-pwd" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">تغيير كلمة المرور</div>
+    <input type="text" id="inp-chg-username" class="modal-input" readonly style="background:#f5f5f5;color:var(--text-light);">
+    <div class="pwd-wrap" style="margin-top:.6rem;">
+      <input type="password" id="inp-new-pwd" class="modal-input" style="margin-bottom:0;" placeholder="كلمة المرور الجديدة" autocomplete="new-password">
+      <button type="button" class="pwd-eye" onclick="toggleEye(this)" tabindex="-1" title="إظهار/إخفاء">👁️</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeM('modal-chg-pwd')">إلغاء</button>
+      <button class="btn btn-save" onclick="changePwd()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-grade" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">إضافة رتبة جديدة</div>
+    <input type="text" id="inp-grade" class="modal-input" placeholder="اسم الرتبة">
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeM('modal-grade')">إلغاء</button>
+      <button class="btn btn-save" onclick="addItem('/api/grades','inp-grade','#chips-grades')">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-lieu" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">إضافة موقع جديد</div>
+    <input type="text" id="inp-lieu" class="modal-input" placeholder="اسم الموقع">
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeM('modal-lieu')">إلغاء</button>
+      <button class="btn btn-save" onclick="addLieu()">حفظ</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .collapse-head { cursor:pointer; user-select:none; }
+  .collapse-arrow { display:inline-block; transition:transform .15s; color:var(--primary-txt, var(--primary)); font-size:.85em; }
+  .collapse-head.open .collapse-arrow { transform:rotate(90deg); }
+</style>
+<script>
+/* Sections repliables des الإعدادات : fermées par défaut, sauf si l'utilisateur
+   avait laissé une section ouverte (mémorisé dans le navigateur). */
+function toggleSection(head) {
+  const body = head.parentElement.querySelector('.collapse-body');
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  head.classList.toggle('open', open);
+  try {
+    const st = JSON.parse(localStorage.getItem('param_sections') || '{}');
+    st[head.textContent.trim()] = open;
+    localStorage.setItem('param_sections', JSON.stringify(st));
+  } catch(e){}
+}
+document.addEventListener('DOMContentLoaded', () => {
+  let st = {};
+  try { st = JSON.parse(localStorage.getItem('param_sections') || '{}'); } catch(e){}
+  document.querySelectorAll('.collapse-head').forEach(h => {
+    if (st[h.textContent.trim()]) {   // rouvrir ce que l'utilisateur avait ouvert
+      const body = h.parentElement.querySelector('.collapse-body');
+      if (body) { body.style.display = ''; h.classList.add('open'); }
+    }
+  });
+});
+
+function closeM(id) { document.getElementById(id).style.display='none'; }
+
+// Enter key for modals
+['inp-grade','inp-lieu'].forEach(id => {
+  document.getElementById(id)?.addEventListener('keydown', e => {
+    if (e.key==='Enter') {
+      if (id==='inp-grade') addItem('/api/grades','inp-grade');
+      if (id==='inp-lieu') addLieu();
+    }
+    if (e.key==='Escape') document.querySelectorAll('.modal-overlay').forEach(m=>m.style.display='none');
+  });
+});
+
+async function addItem(url, inputId) {
+  const nom = document.getElementById(inputId).value.trim();
+  if (!nom) return;
+  const res = await fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nom})});
+  if ((await res.json()).succes) location.reload();
+  else showToast('خطأ في الحفظ', 'error');
+}
+
+async function addLieu() {
+  const nom = document.getElementById('inp-lieu').value.trim();
+  if (!nom) return;
+  const res = await fetch('/api/lieux', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nom})});
+  if ((await res.json()).succes) location.reload();
+  else showToast('خطأ', 'error');
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────
+async function addUser() {
+  const username = document.getElementById('inp-user-name').value.trim();
+  const password = document.getElementById('inp-user-pwd').value.trim();
+  if (!username || !password) { showToast('يرجى ملء جميع الحقول', 'error'); return; }
+  const res = await fetch('/api/users', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username, password,
+                          role: (document.getElementById('inp-user-role') || {}).value || 'user'})
+  });
+  const j = await res.json();
+  if (j.succes) location.reload();
+  else showToast(j.erreur || 'خطأ في الحفظ', 'error');
+}
+
+function openChangePwd(username) {
+  document.getElementById('inp-chg-username').value = username;
+  document.getElementById('inp-new-pwd').value = '';
+  document.getElementById('modal-chg-pwd').style.display = 'flex';
+}
+
+async function changePwd() {
+  const username = document.getElementById('inp-chg-username').value;
+  const new_password = document.getElementById('inp-new-pwd').value.trim();
+  if (!new_password) { showToast('كلمة المرور فارغة', 'error'); return; }
+  const res = await fetch('/api/users/changer-mdp', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username, new_password})
+  });
+  const j = await res.json();
+  if (j.succes) { closeM('modal-chg-pwd'); showToast('تم تغيير كلمة المرور بنجاح', 'success'); }
+  else showToast(j.erreur || 'خطأ', 'error');
+}
+
+// v1.7 — rôle d'un compte (مشرف ثانٍ)
+async function changerRole(sel) {
+  const username = sel.dataset.user, role = sel.value, avant = sel.dataset.avant;
+  const res = await fetch('/api/users/role', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username, role})
+  });
+  const j = await res.json().catch(() => ({}));
+  if (j.succes) {
+    sel.dataset.avant = role;
+    showToast(role === 'admin' ? `أصبح «${username}» مشرفًا عامًّا` : `أصبح «${username}» مستعملًا`, 'success');
+  } else {
+    sel.value = avant;
+    showToast(j.erreur || 'خطأ', 'error');
+  }
+}
+
+function deleteUser(username, userId) {
+  showConfirmModal(`حذف المستخدم «${username}» نهائيًّا؟`, () => _deleteUser(username, userId));
+}
+async function _deleteUser(username, userId) {
+  const res = await fetch('/api/users/supprimer', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username})
+  });
+  const j = await res.json();
+  if (j.succes) { document.getElementById('user-row-' + userId)?.remove(); showToast('تمّ حذف المستخدم', 'success'); }
+  else showToast(j.erreur || 'خطأ في الحذف', 'error');
+}
+
+function deleteItem(url, nom, chipId) {
+  showConfirmModal(`حذف «${nom}» من القائمة؟`, () => _deleteItem(url, nom, chipId));
+}
+async function _deleteItem(url, nom, chipId) {
+  const res = await fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nom})});
+  if ((await res.json()).succes) {
+    document.getElementById(chipId)?.remove();
+  }
+}
+</script>
+{% endblock %}

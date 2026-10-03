@@ -1,0 +1,15 @@
+{# V3 — التّقارير : invitation à remplir جدول العديد (seule donnée demandée au
+   premier lancement). Affichée sur l'accueil au مشرف عام tant que le جدول
+   n'est ni rempli ni reporté par « لاحقا » ; il reste modifiable dans
+   الإعدادات › إعدادات التّقارير. #}
+{% if est_admin and rh_a_demander %}
+<div class="bandeau-exercice bandeau-exercice--info" role="status" style="margin-top:.5rem;">
+  <strong>📑 التّقارير الدّوريّة</strong>:
+  لإعداد تقرير نشاط المركز آليًّا، يرجى تعمير جدول العديد الحالي (الموارد البشريّة) مرّة واحدة؛ ويبقى قابلًا للتّعديل في أيّ وقت من الإعدادات.
+  <a href="{{ url_for('parametres_rapports') }}#rh" class="btn" style="margin-inline-start:.6rem;padding:.2rem .7rem;font-size:.82rem;">تعمير الجدول</a>
+  <form method="post" action="{{ url_for('rapport_rh_plus_tard') }}" style="display:inline;">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+    <button type="submit" class="btn" style="margin-inline-start:.3rem;padding:.2rem .7rem;font-size:.82rem;opacity:.8;">لاحقًا</button>
+  </form>
+</div>
+{% endif %}

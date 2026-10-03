@@ -1,0 +1,343 @@
+{# ═══════════════════════════════════════════════════════════════════════════
+   الشاشة الرئيسية — نقطة الدخول الوحيدة إلى المنظومة (v1.0)
+
+   Trois portes, et rien d'autre : l'agent choisit d'abord CE QU'IL VIENT
+   FAIRE, puis entre dans la section correspondante avec sa propre barre de
+   navigation. Cette page ne dépend pas de base.html : elle n'a pas de menu,
+   c'est tout son propos.
+   ══════════════════════════════════════════════════════════════════════════ #}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" translate="no">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<title>الشاشة الرئيسية – نظام إدارة التكوين</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+<style>
+  body { display:flex; flex-direction:column; min-height:100vh; }
+
+  /* Le تذييل est ancré au bas de la fenêtre : sur cette page-portail, il
+     doit se voir TOUJOURS, sans que l'agent ait à faire défiler. Le wrap
+     réserve sa hauteur en padding pour ne jamais passer dessous. */
+  .footer {
+    position:fixed; left:0; right:0; bottom:0; z-index:6;
+    box-shadow:0 -2px 12px rgba(0,0,0,.18);
+  }
+
+  .accueil-wrap {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; padding:1.4rem 1rem 3.4rem; position:relative; z-index:1;
+  }
+
+  /* ── الترويسة ─────────────────────────────────────────────────────────── */
+  .accueil-head { text-align:center; margin-bottom:1.9rem; }
+  .accueil-logo {
+    width:82px; height:82px; object-fit:contain; border-radius:18px;
+    background:var(--card-bg); padding:.5rem; box-shadow:var(--shadow);
+    margin-bottom:.9rem;
+  }
+  .accueil-title {
+    font-size:1.85rem; font-weight:700; color:var(--primary-txt, var(--primary));
+    letter-spacing:.5px; line-height:1.5;
+  }
+  .accueil-sub {
+    font-size:1rem; color:var(--text-light); margin-top:.35rem;
+  }
+
+  /* ── Canvas de particules — derrière tout, très léger ─────────────────── */
+  #accueilFx { position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.55; }
+  .accueil-wrap { z-index:1; }
+
+  /* ── Mot de bienvenue + badge ────────────────────────────────────────── */
+  .accueil-welcome {
+    margin-top:1rem; display:flex; align-items:center; justify-content:center;
+    gap:.6rem; flex-wrap:wrap; font-size:1.02rem;
+  }
+  .accueil-hello { color:var(--text-light); }
+  .accueil-user-name {
+    font-weight:700; color:var(--primary-txt, var(--primary));
+    padding:.15rem .7rem; border-radius:999px;
+    background:var(--glow-2); border:1px solid var(--border);
+  }
+  .accueil-badge {
+    display:inline-flex; align-items:center; gap:.45rem;
+    font-size:.9rem; font-weight:600; text-decoration:none;
+    color:#fff; background:linear-gradient(135deg, var(--portal-b-l), var(--portal-b-d));
+    padding:.28rem .85rem; border-radius:999px;
+    box-shadow:0 4px 14px var(--glow-1); transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .accueil-badge:hover { transform:translateY(-2px); box-shadow:0 8px 22px var(--glow-1); }
+  .accueil-badge--ok { background:linear-gradient(135deg, var(--portal-c-l), var(--portal-c-d)); }
+  .accueil-badge--retard { background:linear-gradient(135deg, #e0564a, #b42318); }
+  .accueil-badge__dot {
+    width:8px; height:8px; border-radius:50%; background:#fff;
+    box-shadow:0 0 0 0 rgba(255,255,255,.7); animation:badgePulse 1.8s infinite;
+  }
+  @keyframes badgePulse {
+    0%   { box-shadow:0 0 0 0 rgba(255,255,255,.55); }
+    70%  { box-shadow:0 0 0 7px rgba(255,255,255,0); }
+    100% { box-shadow:0 0 0 0 rgba(255,255,255,0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .accueil-badge__dot { animation:none; } }
+
+  /* ── الدوائر الثلاث ───────────────────────────────────────────────────── */
+  .accueil-grid {
+    display:flex; flex-wrap:wrap; gap:2.6rem;
+    align-items:flex-start; justify-content:center;
+  }
+
+  .porte {
+    display:flex; flex-direction:column; align-items:center;
+    text-decoration:none; width:230px;
+  }
+
+  .porte-cercle {
+    width:196px; height:196px; border-radius:50%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:.45rem; color:#fff; text-align:center;
+    box-shadow:0 14px 38px rgba(0,0,0,.22), inset 0 -8px 22px rgba(0,0,0,.16);
+    border:6px solid rgba(255,255,255,.55);
+    transition:transform .28s cubic-bezier(.2,.8,.3,1), box-shadow .28s ease;
+    position:relative; overflow:hidden;
+  }
+  /* Reflet — donne du relief sans image */
+  .porte-cercle::after {
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(circle at 32% 24%, rgba(255,255,255,.34), transparent 58%);
+    pointer-events:none;
+  }
+  .porte-ico  { font-size:3.1rem; line-height:1; filter:drop-shadow(0 3px 5px rgba(0,0,0,.28)); }
+  .porte-nom  { font-size:1.22rem; font-weight:700; padding:0 .8rem; text-shadow:0 2px 4px rgba(0,0,0,.3); }
+
+  .porte:hover .porte-cercle,
+  .porte:focus-visible .porte-cercle { transform:translateY(-9px) scale(1.045); box-shadow:0 22px 52px var(--glow-1), 0 0 38px var(--glow-2), 0 18px 40px rgba(0,0,0,.28), inset 0 -8px 22px rgba(0,0,0,.16); }
+  .porte:focus-visible .porte-cercle { outline:4px solid var(--accent); outline-offset:5px; }
+
+  .porte-desc {
+    margin-top:1rem; font-size:.9rem; line-height:1.65; text-align:center;
+    color:var(--text-light); padding:0 .3rem;
+  }
+
+  .c-programmes  { background:linear-gradient(150deg, var(--primary-l),   var(--primary-d));   }
+  .c-mustahaqqat { background:linear-gradient(150deg, var(--portal-b-l), var(--portal-b-d)); }
+  .c-stats       { background:linear-gradient(150deg, var(--portal-c-l), var(--portal-c-d)); }
+  .c-parametres  { background:linear-gradient(150deg, #546e7a, #263238); }
+
+  /* ── تذييل ─────────────────────────────────────────────────────────────── */
+  .accueil-bar {
+    display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+    justify-content:center; margin-top:1.7rem;
+  }
+  .accueil-bar a, .accueil-bar button {
+    font-family:inherit; font-size:.9rem; cursor:pointer;
+    text-decoration:none; color:var(--text-light);
+    background:var(--card-bg); border:1px solid var(--border);
+    padding:.45rem 1.1rem; border-radius:999px;
+  }
+  .accueil-bar a:hover, .accueil-bar button:hover { color:var(--primary-txt, var(--primary)); border-color:var(--primary-l); }
+
+  .accueil-user { font-weight:700; color:var(--primary-txt, var(--primary)); }
+
+  @media (max-width:760px) {
+    .accueil-grid { gap:1.8rem; }
+    .porte { width:180px; }
+    .porte-cercle { width:158px; height:158px; }
+    .porte-ico { font-size:2.5rem; }
+    .porte-nom { font-size:1.05rem; }
+    .accueil-title { font-size:1.4rem; }
+  }
+</style>
+</head>
+<body data-theme="0"{% if delai_inactivite %} data-inactivite="{{ delai_inactivite }}" data-logout="{{ url_for('logout', inactivite=1) }}"{% endif %}>
+{# v1.5 : les messages du serveur (p. ex. « تمّ تغيير كلمة المرور ») s'affichent ici aussi. #}
+{% include '_toasts.html' %}
+<div style="max-width:1100px;margin:.8rem auto 0;padding:0 16px;">{% include '_alerte_exercice.html' %}{% include '_alerte_rapport_rh.html' %}</div>
+
+<div class="app-bg" aria-hidden="true">
+  <div class="app-bg__orbs"></div>
+  <div class="app-bg__floor"></div>
+  <div class="app-bg__vignette"></div>
+</div>
+
+{# Particules flottantes légères — la couleur suit le thème (voir le script). #}
+<canvas id="accueilFx" aria-hidden="true"></canvas>
+
+<div class="accueil-wrap">
+
+  <div class="accueil-head">
+    <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="شعار" class="accueil-logo">
+    <div class="accueil-title">نظام إدارة التكوين الديواني</div>
+    <div class="accueil-sub">{{ nom_centre }}</div>
+
+    <div class="accueil-welcome">
+      <span class="accueil-hello">مرحبًا بك،</span>
+      <span class="accueil-user-name">{{ session.get('username', '') }}</span>
+      {# v1.7 — deux pastilles : برامج متأخّرة / مستحقّات معلّقة #}
+      {% if nb_retard %}
+      <a href="{{ url_for('formations_en_cours') }}" class="accueil-badge accueil-badge--retard" title="برامج فات تاريخ إحدى دوراتها دون تسجيل نهائي">
+        <span class="accueil-badge__dot"></span>
+        برامج متأخّرة: <strong>{{ nb_retard }}</strong>
+      </a>
+      {% endif %}
+      {% if nb_en_cours %}
+      <a href="{{ url_for('mustahaqqat_ghayr_manjaza') }}" class="accueil-badge" title="دورات مسجّلة نهائيًّا ولم تُنجز مستحقّاتها">
+        <span class="accueil-badge__dot"></span>
+        مستحقّات معلّقة: <strong>{{ nb_en_cours }}</strong>
+      </a>
+      {% endif %}
+      {# V3.1 — إشعارات المشرف العام #}
+      {% if notifs and notifs.nb %}
+      <a href="{{ url_for('notifications_page') }}" class="accueil-badge accueil-badge--retard" title="تحيينات قام بها مستعملون آخرون منذ آخر اطّلاع لك">
+        <span class="accueil-badge__dot"></span>
+        🔔 تحيينات جديدة: <strong>{{ notifs.nb }}</strong>
+      </a>
+      {% endif %}
+      {% if not nb_retard and not nb_en_cours %}
+      <span class="accueil-badge accueil-badge--ok">
+        <span class="accueil-badge__dot"></span>
+        لا برامج متأخّرة ولا مستحقّات معلّقة
+      </span>
+      {% endif %}
+    </div>
+  </div>
+
+  <nav class="accueil-grid" aria-label="أقسام المنظومة">
+
+    <a class="porte" href="{{ url_for('dashboard') }}">
+      <span class="porte-cercle c-programmes">
+        <span class="porte-ico" aria-hidden="true">📋</span>
+        <span class="porte-nom">برامج تكوينية</span>
+      </span>
+      <span class="porte-desc">
+        إحداث برامج التكوين ومتابعتها، المراسلات، السجلّ، المكوّنون والمواد.
+      </span>
+    </a>
+
+    <a class="porte" href="{{ url_for('mustahaqqat_dashboard') }}">
+      <span class="porte-cercle c-mustahaqqat">
+        <span class="porte-ico" aria-hidden="true">💰</span>
+        <span class="porte-nom">مستحقات مالية</span>
+      </span>
+      <span class="porte-desc">
+        التأشير على الحضور، تحديد صنف الدورة، وتعمير وثائق المستحقّات.
+      </span>
+    </a>
+
+    <a class="porte" href="{{ url_for('statistiques') }}">
+      <span class="porte-cercle c-stats">
+        <span class="porte-ico" aria-hidden="true">📈</span>
+        <span class="porte-nom">إحصائيات</span>
+      </span>
+      <span class="porte-desc">
+        صورة شاملة عن نشاط المركز: البرامج، الدورات، المشاركون والجهات.
+      </span>
+    </a>
+
+    <a class="porte" href="{{ url_for('parametres') }}">
+      <span class="porte-cercle c-parametres">
+        <span class="porte-ico" aria-hidden="true">⚙️</span>
+        <span class="porte-nom">الإعدادات</span>
+      </span>
+      <span class="porte-desc">
+        إعدادات المنظومة وهويّة المركز وتخصيص الخيارات.
+      </span>
+    </a>
+
+  </nav>
+
+  {# V3 : مؤشّرات السّنة الجارية مقارنة بنفس الفترة من السّنة الماضية. #}
+  {% if kpis and not kpis.vide %}{% include '_accueil_kpis.html' %}{% endif %}
+
+  {# سجلّ التدقيق vit dans «الإعدادات» ; V3.2 : + دليل الاستعمال. #}
+  <div class="accueil-bar">
+    <a href="{{ url_for('apropos') }}">ℹ️ تعريف بالبرنامج</a>
+    <a href="{{ url_for('guide') }}">📘 دليل الاستعمال</a>
+    <a href="#" onclick="confirmerSortie(); return false;">🚪 تسجيل الخروج</a>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <span>{{ nom_centre }} &nbsp;|&nbsp; {{ now_year }}{% if version_label %} &nbsp;|&nbsp; {{ version_label }}{% endif %} &nbsp;|&nbsp; أنشأ من طرف حازم مسعودي</span>
+</footer>
+
+<script>
+  /* Le thème choisi sur les autres pages est respecté ici aussi. */
+  (function () {
+    /* v1.5 : thème et police partagés (ui.js), mode sombre du système compris. */
+    if (window.APP_PREFS) APP_PREFS.appliquer();
+  })();
+
+  function confirmerSortie() {
+    showConfirmModal('هل تريد فعلاً تسجيل الخروج من النظام؟', function () {
+      location.href = "{{ url_for('logout') }}";
+    });
+  }
+
+  /* ── Particules flottantes légères — la couleur suit le thème ──────────────
+     Beaucoup plus discret que la pluie de l'écran de connexion : quelques
+     points qui montent doucement, teintés par --accent du thème choisi. */
+  (function () {
+    var reduce = window.matchMedia &&
+                 window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    var cv = document.getElementById('accueilFx');
+    if (!cv || !cv.getContext) return;
+    var ctx = cv.getContext('2d'), W, H, parts = [], raf = null;
+
+    function themeColor() {
+      var c = getComputedStyle(document.body).getPropertyValue('--accent').trim()
+           || getComputedStyle(document.body).getPropertyValue('--primary-l').trim()
+           || '#2d5fa8';
+      return c;
+    }
+    function hexToRgb(h) {
+      h = h.replace('#', '');
+      if (h.length === 3) h = h.split('').map(function (x) { return x + x; }).join('');
+      var n = parseInt(h, 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+    var rgb = hexToRgb(themeColor());
+
+    function resize() {
+      W = cv.width = window.innerWidth;
+      H = cv.height = window.innerHeight;
+      var n = Math.min(46, Math.floor(W / 34));
+      parts = [];
+      for (var i = 0; i < n; i++) {
+        parts.push({
+          x: Math.random() * W, y: Math.random() * H,
+          r: Math.random() * 2.4 + 0.8,
+          vy: -(Math.random() * 0.35 + 0.12),
+          vx: (Math.random() - 0.5) * 0.18,
+          a: Math.random() * 0.4 + 0.15
+        });
+      }
+    }
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      for (var i = 0; i < parts.length; i++) {
+        var p = parts[i];
+        p.x += p.vx; p.y += p.vy;
+        if (p.y < -6) { p.y = H + 6; p.x = Math.random() * W; }
+        if (p.x < -6) p.x = W + 6; else if (p.x > W + 6) p.x = -6;
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + p.a + ')';
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(draw);
+    }
+    // Recalcule la couleur quand le thème change (au cas où).
+    window.refreshFxColor = function () { rgb = hexToRgb(themeColor()); };
+    window.addEventListener('resize', resize);
+    resize();
+    if (!raf) draw();
+  })();
+</script>
+
+</body>
+</html>
